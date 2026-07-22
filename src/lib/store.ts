@@ -1,13 +1,12 @@
 import { EmergencyReport, ReliefCenter, ResourceItem, VolunteerProfile, ActivityLog, NotificationItem } from '@/types';
-import { MOCK_EMERGENCIES, MOCK_RELIEF_CENTERS, MOCK_RESOURCES, MOCK_VOLUNTEERS, MOCK_NOTIFICATIONS, MOCK_ACTIVITY_LOGS } from './mockData';
 
 class GlobalStore {
-  public emergencies: EmergencyReport[] = [...MOCK_EMERGENCIES];
-  public reliefCenters: ReliefCenter[] = [...MOCK_RELIEF_CENTERS];
-  public resources: ResourceItem[] = [...MOCK_RESOURCES];
-  public volunteers: VolunteerProfile[] = [...MOCK_VOLUNTEERS];
-  public notifications: NotificationItem[] = [...MOCK_NOTIFICATIONS];
-  public logs: ActivityLog[] = [...MOCK_ACTIVITY_LOGS];
+  public emergencies: EmergencyReport[] = [];
+  public reliefCenters: ReliefCenter[] = [];
+  public resources: ResourceItem[] = [];
+  public volunteers: VolunteerProfile[] = [];
+  public notifications: NotificationItem[] = [];
+  public logs: ActivityLog[] = [];
 
   public addReport(report: EmergencyReport) {
     this.emergencies.unshift(report);

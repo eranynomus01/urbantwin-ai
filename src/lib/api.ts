@@ -1,5 +1,4 @@
 import { EmergencyReport, ReliefCenter, ResourceItem, VolunteerProfile, NotificationItem, ActivityLog, AIAnalysisResult } from '@/types';
-import { MOCK_EMERGENCIES, MOCK_RELIEF_CENTERS, MOCK_RESOURCES, MOCK_VOLUNTEERS, MOCK_NOTIFICATIONS, MOCK_ACTIVITY_LOGS } from './mockData';
 
 const API_BASE = '/api';
 
@@ -28,8 +27,8 @@ export const api = {
     if (disaster_type) url += `disaster_type=${encodeURIComponent(disaster_type)}&`;
     if (search) url += `search=${encodeURIComponent(search)}&`;
 
-    const res = await fetchWithFallback<{ reports: EmergencyReport[] }>(url, {}, { reports: MOCK_EMERGENCIES });
-    return res.reports || MOCK_EMERGENCIES;
+    const res = await fetchWithFallback<{ reports: EmergencyReport[] }>(url, {}, { reports: [] });
+    return res.reports || [];
   },
 
   async createReport(reportData: Partial<EmergencyReport>): Promise<{ report: EmergencyReport; ai_analysis: AIAnalysisResult }> {
@@ -46,7 +45,6 @@ export const api = {
       console.warn("Client fallback AI triage:", e);
     }
 
-    // Client Triage Fallback
     const mockReport: EmergencyReport = {
       id: Math.floor(Math.random() * 9000) + 1000,
       user_name: reportData.user_name || "Citizen User",
@@ -93,34 +91,34 @@ export const api = {
 
   // Relief Centers
   async getReliefCenters(): Promise<ReliefCenter[]> {
-    const res = await fetchWithFallback<{ relief_centers: ReliefCenter[] }>('/relief-centers', {}, { relief_centers: MOCK_RELIEF_CENTERS });
-    return res.relief_centers || MOCK_RELIEF_CENTERS;
+    const res = await fetchWithFallback<{ relief_centers: ReliefCenter[] }>('/relief-centers', {}, { relief_centers: [] });
+    return res.relief_centers || [];
   },
 
-  async getNearestReliefCenter(lat: number, lng: number): Promise<{ nearest_center: ReliefCenter; recommendation: string }> {
-    return await fetchWithFallback<{ nearest_center: ReliefCenter; recommendation: string }>(
+  async getNearestReliefCenter(lat: number, lng: number): Promise<{ nearest_center: ReliefCenter | null; recommendation: string }> {
+    return await fetchWithFallback<{ nearest_center: ReliefCenter | null; recommendation: string }>(
       '/relief-centers/nearest',
       {
         method: 'POST',
         body: JSON.stringify({ lat, lng })
       },
       {
-        nearest_center: { ...MOCK_RELIEF_CENTERS[0], distance_km: 2.4 },
-        recommendation: `AI recommends heading to ${MOCK_RELIEF_CENTERS[0].name} (2.4 km away). Available Beds: ${MOCK_RELIEF_CENTERS[0].available_beds}.`
+        nearest_center: null,
+        recommendation: "No active relief centers logged yet."
       }
     );
   },
 
   // Resources
   async getResources(): Promise<ResourceItem[]> {
-    const res = await fetchWithFallback<{ resources: ResourceItem[] }>('/resources', {}, { resources: MOCK_RESOURCES });
-    return res.resources || MOCK_RESOURCES;
+    const res = await fetchWithFallback<{ resources: ResourceItem[] }>('/resources', {}, { resources: [] });
+    return res.resources || [];
   },
 
   // Volunteers
   async getVolunteers(): Promise<VolunteerProfile[]> {
-    const res = await fetchWithFallback<{ volunteers: VolunteerProfile[] }>('/volunteers', {}, { volunteers: MOCK_VOLUNTEERS });
-    return res.volunteers || MOCK_VOLUNTEERS;
+    const res = await fetchWithFallback<{ volunteers: VolunteerProfile[] }>('/volunteers', {}, { volunteers: [] });
+    return res.volunteers || [];
   },
 
   // AI Chat
@@ -151,16 +149,16 @@ export const api = {
   // Analytics
   async getStats() {
     return await fetchWithFallback('/analytics/stats', {}, {
-      total_emergencies: 57,
-      active_volunteers: 142,
-      relief_centers: 18,
-      people_rescued: 482,
-      resources_delivered: 12500,
+      total_emergencies: 0,
+      active_volunteers: 0,
+      relief_centers: 0,
+      people_rescued: 0,
+      resources_delivered: 0,
       disaster_distribution: {
-        Flood: 14, Fire: 8, Earthquake: 5, Cyclone: 11, Heatwave: 6, Landslide: 4, 'Medical Emergency': 9
+        Flood: 0, Fire: 0, Earthquake: 0, Cyclone: 0, Heatwave: 0, Landslide: 0, 'Medical Emergency': 0
       },
-      status_distribution: { Pending: 4, Assigned: 6, 'In Progress': 8, Resolved: 22 },
-      avg_response_time_minutes: 14.2
+      status_distribution: { Pending: 0, Assigned: 0, 'In Progress': 0, Resolved: 0 },
+      avg_response_time_minutes: 0
     });
   }
 };
