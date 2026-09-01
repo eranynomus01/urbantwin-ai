@@ -1,259 +1,340 @@
 'use client';
+
 import React, { useState, useEffect } from 'react';
-import { UserRole, EmergencyReport, ReliefCenter, ResourceItem, VolunteerProfile, User } from '@/types';
-import { api } from '@/lib/api';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { LiveMap } from '@/components/LiveMap';
-import { AIChatbot } from '@/components/AIChatbot';
-import { ReportEmergencyModal } from '@/components/ReportEmergencyModal';
-import { NotificationDrawer } from '@/components/NotificationDrawer';
-import { AuthModal } from '@/components/AuthModal';
-import { MobileBottomNav } from '@/components/MobileBottomNav';
-import { CitizenDashboard } from '@/components/CitizenDashboard';
-import { VolunteerDashboard } from '@/components/VolunteerDashboard';
-import { OfficerDashboard } from '@/components/OfficerDashboard';
-import { NGODashboard } from '@/components/NGODashboard';
-import { AdminDashboard } from '@/components/AdminDashboard';
-import {
-  ShieldAlert,
-  AlertTriangle,
-  HeartHandshake,
-  Home as HomeIcon,
-  Waves,
-  Flame,
-  Mountain,
-  Zap,
-  SunMedium,
-  Stethoscope,
-  Sparkles,
-  Lock
-} from 'lucide-react';
+import Header from '@/components/UI/Header';
+import RealTimeTelemetry from '@/components/Panels/RealTimeTelemetry';
+import DigitalTwinMap from '@/components/Map/DigitalTwinMap';
+import ZoneInspector from '@/components/Panels/ZoneInspector';
+import WhatIfSimulator from '@/components/Panels/WhatIfSimulator';
+import EmergencyDispatcher from '@/components/Panels/EmergencyDispatcher';
+import AIAdvisorPanel from '@/components/Panels/AIAdvisorPanel';
+import ScenarioComparison, { BASELINE_SCENARIO, PRESET_SCENARIO_A, PRESET_SCENARIO_B } from '@/components/Panels/ScenarioComparison';
+import DataTransparencyModal from '@/components/Panels/DataTransparencyModal';
+import ReportGeneratorModal from '@/components/Panels/ReportGeneratorModal';
 
-export default function Home() {
-  const [currentRole, setCurrentRole] = useState<UserRole>('citizen');
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [darkMode, setDarkMode] = useState(true);
-  const [isSOSOpen, setIsSOSOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
+import { SUPPORTED_CITIES, getActiveCity } from '@/data/cities';
+import { GURUGRAM_SECTORS } from '@/data/gurugram/sectors';
+import { GURUGRAM_HOSPITALS } from '@/data/gurugram/hospitals';
+import { GURUGRAM_FIRE_STATIONS } from '@/data/gurugram/fireStations';
+import { GURUGRAM_POLICE_STATIONS } from '@/data/gurugram/policeStations';
+import { GURUGRAM_PARKS } from '@/data/gurugram/parks';
+import { GURUGRAM_TRANSIT_NODES } from '@/data/gurugram/transit';
+import { GURUGRAM_ROADS } from '@/data/gurugram/roads';
+import { GURUGRAM_FLOOD_RISK_ZONES } from '@/data/gurugram/floodRiskZones';
+import { GURUGRAM_HEAT_RISK_ZONES } from '@/data/gurugram/heatRiskZones';
 
-  const [emergencies, setEmergencies] = useState<EmergencyReport[]>([]);
-  const [reliefCenters, setReliefCenters] = useState<ReliefCenter[]>([]);
-  const [resources, setResources] = useState<ResourceItem[]>([]);
-  const [volunteers, setVolunteers] = useState<VolunteerProfile[]>([]);
-  const [stats, setStats] = useState({
-    total_emergencies: 0,
-    active_volunteers: 0,
-    relief_centers: 0,
-    people_rescued: 0,
-    resources_delivered: 0
+import { 
+  City, 
+  Zone, 
+  UserRole, 
+  SimulationResult, 
+  EmergencyIncident, 
+  RealTimeCityTelemetry,
+  ScenarioItem 
+} from '@/types';
+
+export default function UrbanTwinCommandCenter() {
+  // Application State
+  const [activeCity, setActiveCity] = useState<City>(getActiveCity('gurugram'));
+  const [userRole, setUserRole] = useState<UserRole>('urban_planner');
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios'>('inspector');
+
+  // GIS Selection & Entities
+  const [selectedZone, setSelectedZone] = useState<Zone | null>(GURUGRAM_SECTORS[0]); // Default to DLF Cyber City
+  const [mapCenter, setMapCenter] = useState<[number, number]>(activeCity.center);
+  const [mapZoom, setMapZoom] = useState<number>(activeCity.defaultZoom);
+
+  // Active Simulation & Incidents
+  const [activeSimulation, setActiveSimulation] = useState<SimulationResult | null>(null);
+  const [activeIncident, setActiveIncident] = useState<EmergencyIncident | null>(null);
+  const [savedScenarios, setSavedScenarios] = useState<ScenarioItem[]>([]);
+
+  // Map Click Interactive Mode
+  const [mapClickMode, setMapClickMode] = useState<'inspect' | 'simulation_drop' | 'incident_drop'>('inspect');
+  const [droppedCoords, setDroppedCoords] = useState<[number, number] | null>(null);
+
+  // AI Prompt Bridge
+  const [activeAIPrompt, setActiveAIPrompt] = useState<string | null>(null);
+
+  // Modals
+  const [isDataModalOpen, setIsDataModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Live Telemetry Stream
+  const [telemetry, setTelemetry] = useState<RealTimeCityTelemetry>({
+    cityId: 'gurugram',
+    cityName: 'Gurugram',
+    weather: {
+      temperatureC: 32.4,
+      feelsLikeC: 36.1,
+      humidityPct: 62,
+      rainfallMmPerHr: 0.0,
+      windSpeedKmh: 12.8,
+      windDirection: 'NW',
+      conditionText: 'Partly Cloudy / Hazy',
+      uvIndex: 6.2,
+      sourceName: 'Open-Meteo High-Resolution Model',
+      sourceUrl: 'https://open-meteo.com/',
+      lastUpdated: '18:45 IST',
+      isRealTime: true,
+    },
+    airQuality: {
+      aqi: 178,
+      pm25: 88.4,
+      pm10: 164.2,
+      no2: 42.1,
+      o3: 28.5,
+      so2: 14.2,
+      co: 1.2,
+      category: 'Poor',
+      stationName: 'Sector 51 Continuous Ambient Air Quality Station, Gurugram',
+      sourceName: 'CPCB / NAQI Open Data Feed',
+      sourceUrl: 'https://cpcb.nic.in/',
+      lastUpdated: '18:45 IST',
+      isRealTime: true,
+    },
+    trafficSummary: {
+      overallIndex: 68,
+      congestedCorridorsCount: 3,
+      avgCitySpeedKmh: 31.4,
+      sourceName: 'GMDA ICCC & OSM Graph',
+      lastUpdated: '18:45 IST',
+    },
+    emergencyStatus: {
+      activeIncidentsCount: 2,
+      avgFireResponseTimeMin: 8.4,
+      avgAmbulanceResponseTimeMin: 9.6,
+      systemAlertLevel: 'NORMAL',
+    },
   });
 
-  const loadPortalData = () => {
-    api.getReports().then(setEmergencies);
-    api.getReliefCenters().then(setReliefCenters);
-    api.getResources().then(setResources);
-    api.getVolunteers().then(setVolunteers);
-    api.getStats().then((s: any) => setStats(s));
-  };
-
+  // Fetch live environmental telemetry on mount & interval
   useEffect(() => {
-    loadPortalData();
-  }, []);
+    async function loadTelemetry() {
+      try {
+        const res = await fetch(`/api/environmental?city=${activeCity.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTelemetry(data);
+        }
+      } catch (err) {
+        console.warn('Live telemetry initial fetch error:', err);
+      }
+    }
+    loadTelemetry();
+    const interval = setInterval(loadTelemetry, 120000); // Poll every 2 min
+    return () => clearInterval(interval);
+  }, [activeCity.id]);
 
-  const handleLoginSuccess = (user: User) => {
-    setCurrentUser(user);
-    setCurrentRole(user.role);
+  // Handle sector selection on map
+  const handleSelectZone = (zone: Zone | null) => {
+    setSelectedZone(zone);
+    if (zone) {
+      setMapCenter(zone.center);
+      setMapZoom(13.8);
+      setActiveTab('inspector');
+    }
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
+  // Handle map click in special drop modes
+  const handleMapClickCoord = (coord: [number, number]) => {
+    if (mapClickMode === 'simulation_drop') {
+      setDroppedCoords(coord);
+      setMapClickMode('inspect');
+      setActiveTab('simulator');
+    } else if (mapClickMode === 'incident_drop') {
+      setDroppedCoords(coord);
+      setMapClickMode('inspect');
+      setActiveTab('emergency');
+    } else {
+      // Find closest sector if clicking open space
+      let closest = GURUGRAM_SECTORS[0];
+      let minD = Infinity;
+      GURUGRAM_SECTORS.forEach((s) => {
+        const d = Math.hypot(s.center[0] - coord[0], s.center[1] - coord[1]);
+        if (d < minD) {
+          minD = d;
+          closest = s;
+        }
+      });
+      if (minD < 0.04) {
+        handleSelectZone(closest);
+      }
+    }
   };
 
-  const handleStatusUpdate = async (id: number, status: string, team: string) => {
-    await api.updateReportStatus(id, status, team);
-    setEmergencies((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, status: status as any, assigned_team: team } : e))
-    );
+  // Ask AI handler
+  const handleAskAI = (promptText: string) => {
+    setActiveAIPrompt(promptText);
+    setActiveTab('ai_advisor');
   };
 
-  const disasterTypes = [
-    { name: 'Flood', icon: <Waves className="w-5 h-5 text-blue-400" />, desc: 'Amphibious rescue' },
-    { name: 'Fire', icon: <Flame className="w-5 h-5 text-rose-500" />, desc: 'Hazmat response' },
-    { name: 'Earthquake', icon: <Mountain className="w-5 h-5 text-amber-500" />, desc: 'Debris search' },
-    { name: 'Cyclone', icon: <Zap className="w-5 h-5 text-sky-400" />, desc: 'Storm shelter' },
-    { name: 'Heatwave', icon: <SunMedium className="w-5 h-5 text-yellow-500" />, desc: 'Cooling & oxygen' },
-    { name: 'Landslide', icon: <ShieldAlert className="w-5 h-5 text-emerald-500" />, desc: 'Safety clearing' },
-    { name: 'Medical', icon: <Stethoscope className="w-5 h-5 text-red-400" />, desc: 'ACLS ambulance' },
-  ];
+  // Start simulation in specific zone
+  const handleStartSimulationInZone = (zone: Zone) => {
+    setDroppedCoords(zone.center);
+    setActiveTab('simulator');
+  };
+
+  // Save scenario
+  const handleSaveScenario = (simResult: SimulationResult) => {
+    const newScenario: ScenarioItem = {
+      id: `scen-${Date.now()}`,
+      name: simResult.scenarioName,
+      description: simResult.keyFindings.join(' '),
+      simulationType: simResult.simulationType,
+      cityId: 'gurugram',
+      createdAt: new Date().toLocaleDateString('en-IN'),
+      author: 'Urban Planner',
+      kpis: {
+        avgEmergencyResponseMin: Math.max(4.0, Math.round((8.4 + simResult.deltaResponseTimeMin) * 10) / 10),
+        healthcareCoveragePct: Math.min(98, Math.round((68.5 + simResult.healthcareCoverageIncreasePct) * 10) / 10),
+        fireCoveragePct: Math.min(98, Math.round((64.2 + simResult.fireCoverageIncreasePct) * 10) / 10),
+        trafficCongestionIndex: Math.max(30, Math.round((68.0 + simResult.trafficDelayIndexDelta) * 10) / 10),
+        greenSpacePerCapitaSqM: simResult.uhiMitigationC > 0 ? 4.22 : 3.4,
+        floodVulnerabilityScore: 6.8,
+        uhiExtremeAreaPct: simResult.uhiMitigationC > 0 ? 34.0 : 42.0,
+        overallUrbanResilienceScore: Math.min(99, Math.round(62.0 + (simResult.impactScore * 0.25))),
+      },
+      simulationDelta: simResult,
+    };
+    setSavedScenarios((prev) => [newScenario, ...prev]);
+    setActiveTab('scenarios');
+  };
 
   return (
-    <div className={darkMode ? 'dark bg-slate-950 text-slate-100 min-h-screen pb-16 md:pb-0' : 'bg-slate-50 text-slate-900 min-h-screen pb-16 md:pb-0'}>
-      <Navbar
-        currentRole={currentRole}
-        onRoleChange={setCurrentRole}
-        currentUser={currentUser}
-        onOpenAuth={() => setIsAuthOpen(true)}
-        onLogout={handleLogout}
-        onOpenSOS={() => setIsSOSOpen(true)}
-        onOpenNotifications={() => setIsNotificationsOpen(true)}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
+    <div className={`h-screen w-screen flex flex-col ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'} overflow-hidden`}>
+      {/* 1. TOP COMMAND HEADER */}
+      <Header
+        activeCity={activeCity}
+        onSelectCity={(city) => {
+          setActiveCity(city);
+          setMapCenter(city.center);
+          setMapZoom(city.defaultZoom);
+        }}
+        userRole={userRole}
+        onSelectRole={setUserRole}
+        isDarkMode={isDarkMode}
+        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
+        onOpenDataModal={() => setIsDataModalOpen(true)}
+        onOpenReportModal={() => setIsReportModalOpen(true)}
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
       />
 
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-10 md:space-y-16">
-        {/* HERO SECTION */}
-        <section className="relative rounded-3xl p-6 sm:p-12 overflow-hidden bg-gradient-to-br from-blue-950 via-slate-900 to-slate-950 border border-blue-900/40 shadow-2xl">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="relative z-10 max-w-3xl space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-900/60 border border-blue-700/60 text-blue-300 font-extrabold text-[11px] sm:text-xs tracking-wider uppercase">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> National AI Emergency Response Platform
-            </div>
+      {/* 2. REAL-TIME ENVIRONMENTAL & TELEMETRY TICKER */}
+      <RealTimeTelemetry telemetry={telemetry} />
 
-            <h1 className="text-2xl sm:text-5xl lg:text-6xl font-black text-white leading-tight tracking-tight">
-              AI Powered <span className="bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-400 bg-clip-text text-transparent">Disaster Emergency</span> Response Portal
-            </h1>
+      {/* 3. MAIN COMMAND CENTER CANVAS */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* LEFT / CENTER: GIS DIGITAL TWIN MAP CANVAS */}
+        <div className="flex-1 h-full relative">
+          <DigitalTwinMap
+            center={mapCenter}
+            zoom={mapZoom}
+            isDarkMode={isDarkMode}
+            selectedZone={selectedZone}
+            onSelectZone={handleSelectZone}
+            sectors={GURUGRAM_SECTORS}
+            hospitals={GURUGRAM_HOSPITALS}
+            fireStations={GURUGRAM_FIRE_STATIONS}
+            policeStations={GURUGRAM_POLICE_STATIONS}
+            parks={GURUGRAM_PARKS}
+            transitNodes={GURUGRAM_TRANSIT_NODES}
+            roads={GURUGRAM_ROADS}
+            floodZones={GURUGRAM_FLOOD_RISK_ZONES}
+            heatZones={GURUGRAM_HEAT_RISK_ZONES}
+            activeSimulation={activeSimulation}
+            activeIncident={activeIncident}
+            mapClickMode={mapClickMode}
+            onMapClickCoord={handleMapClickCoord}
+          />
+        </div>
 
-            <p className="text-xs sm:text-base text-slate-300 leading-relaxed max-w-2xl font-normal">
-              Unified platform connecting Citizens, Rescue Volunteers, District Magistrates, and NGOs to coordinate during floods, fires, cyclones, earthquakes, and medical crises.
-            </p>
-
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
-              <button
-                onClick={() => setIsSOSOpen(true)}
-                className="sos-glow px-6 py-3.5 bg-gradient-to-r from-red-600 to-rose-700 text-white font-black text-sm uppercase tracking-wider rounded-2xl shadow-xl flex items-center justify-center gap-2 active:scale-95"
-              >
-                <AlertTriangle className="w-5 h-5 animate-pulse" /> Report Emergency (SOS)
-              </button>
-
-              <button
-                onClick={() => {
-                  setCurrentRole('volunteer');
-                  setIsAuthOpen(true);
-                }}
-                className="px-6 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-2xl shadow flex items-center justify-center gap-2"
-              >
-                <HeartHandshake className="w-5 h-5" /> Become Volunteer
-              </button>
-
-              <button
-                onClick={() => {
-                  const mapElem = document.getElementById('live-map-section');
-                  if (mapElem) mapElem.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="px-6 py-3.5 bg-slate-800/80 border border-slate-700 text-slate-200 font-bold text-sm rounded-2xl flex items-center justify-center gap-2"
-              >
-                <HomeIcon className="w-5 h-5 text-blue-400" /> Find Relief Center
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* LIVE COUNTER STATISTICS */}
-        <section className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">
-            <span className="block text-2xl sm:text-3xl font-black text-blue-600 dark:text-blue-400">{stats.total_emergencies}</span>
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-1 block">Active SOS Reports</span>
-          </div>
-          <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">
-            <span className="block text-2xl sm:text-3xl font-black text-emerald-500">{stats.active_volunteers}</span>
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-1 block">Verified Volunteers</span>
-          </div>
-          <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">
-            <span className="block text-2xl sm:text-3xl font-black text-sky-400">{stats.relief_centers}</span>
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-1 block">Relief Shelters</span>
-          </div>
-          <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 text-center">
-            <span className="block text-2xl sm:text-3xl font-black text-rose-500">{stats.people_rescued}</span>
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-1 block">People Rescued</span>
-          </div>
-          <div className="glass-panel p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 text-center col-span-2 lg:col-span-1">
-            <span className="block text-2xl sm:text-3xl font-black text-amber-400">{stats.resources_delivered.toLocaleString()}</span>
-            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mt-1 block">Supplies Logged</span>
-          </div>
-        </section>
-
-        {/* EMERGENCY TYPES GRID */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-blue-500" /> Emergency Categories
-            </h2>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
-            {disasterTypes.map((d) => (
-              <div
-                key={d.name}
-                className="p-3 bg-slate-900/60 rounded-2xl border border-slate-800 hover:border-blue-500/60 transition-all text-center group cursor-pointer"
-              >
-                <div className="mx-auto w-9 h-9 bg-slate-800 rounded-xl flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
-                  {d.icon}
-                </div>
-                <h4 className="font-bold text-xs text-white mb-0.5">{d.name}</h4>
-                <p className="text-[9px] text-slate-400 line-clamp-1">{d.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* DYNAMIC ROLE DASHBOARD WORKSPACE */}
-        <section className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-3 gap-2">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-400">Portal Workspace</span>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white capitalize">
-                {currentRole === 'officer' ? 'District Officer' : currentRole === 'ngo' ? 'NGO Partner' : currentRole} Command Workspace
-              </h2>
-            </div>
-            {!currentUser && (
-              <button
-                onClick={() => setIsAuthOpen(true)}
-                className="self-start sm:self-auto px-3 py-1.5 bg-slate-800 text-blue-400 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5"
-              >
-                <Lock className="w-3.5 h-3.5" /> Authenticate Role Account
-              </button>
-            )}
-          </div>
-
-          {currentRole === 'citizen' && (
-            <CitizenDashboard emergencies={emergencies} reliefCenters={reliefCenters} onOpenSOS={() => setIsSOSOpen(true)} />
+        {/* RIGHT: INTERACTIVE CONTROL & ANALYTICS DRAWER */}
+        <div className="w-[430px] lg:w-[480px] h-full bg-slate-950/95 border-l border-slate-800 flex flex-col z-30 shadow-2xl backdrop-blur-xl">
+          {activeTab === 'inspector' && (
+            <ZoneInspector
+              selectedZone={selectedZone}
+              onClearSelection={() => setSelectedZone(null)}
+              onAskAI={handleAskAI}
+              onStartSimulationInZone={handleStartSimulationInZone}
+              fireStations={GURUGRAM_FIRE_STATIONS}
+              hospitals={GURUGRAM_HOSPITALS}
+            />
           )}
-          {currentRole === 'volunteer' && (
-            <VolunteerDashboard emergencies={emergencies} />
-          )}
-          {currentRole === 'officer' && (
-            <OfficerDashboard emergencies={emergencies} reliefCenters={reliefCenters} volunteers={volunteers} onStatusUpdate={handleStatusUpdate} />
-          )}
-          {currentRole === 'ngo' && (
-            <NGODashboard resources={resources} />
-          )}
-          {currentRole === 'admin' && (
-            <AdminDashboard />
-          )}
-        </section>
 
-        {/* LIVE DISASTER MAP SECTION */}
-        <section id="live-map-section" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">Real-Time GIS Mapping</span>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">
-                Live Disaster Map & Safe Zones
-              </h2>
-            </div>
-          </div>
-          <LiveMap emergencies={emergencies} reliefCenters={reliefCenters} />
-        </section>
-      </main>
+          {activeTab === 'simulator' && (
+            <WhatIfSimulator
+              roads={GURUGRAM_ROADS}
+              sectors={GURUGRAM_SECTORS}
+              selectedZone={selectedZone}
+              activeSimulation={activeSimulation}
+              onSimulationComplete={setActiveSimulation}
+              onClearSimulation={() => setActiveSimulation(null)}
+              onSaveScenario={handleSaveScenario}
+              onAskAI={handleAskAI}
+              onEnableMapDrop={(mode) => setMapClickMode(mode)}
+              droppedCoords={droppedCoords}
+            />
+          )}
 
-      <Footer />
+          {activeTab === 'emergency' && (
+            <EmergencyDispatcher
+              hospitals={GURUGRAM_HOSPITALS}
+              fireStations={GURUGRAM_FIRE_STATIONS}
+              policeStations={GURUGRAM_POLICE_STATIONS}
+              sectors={GURUGRAM_SECTORS}
+              activeIncident={activeIncident}
+              onDispatchIncident={setActiveIncident}
+              onClearIncident={() => setActiveIncident(null)}
+              onEnableMapDrop={(mode) => setMapClickMode(mode)}
+              onAskAI={handleAskAI}
+              droppedCoords={droppedCoords}
+            />
+          )}
 
-      <ReportEmergencyModal isOpen={isSOSOpen} onClose={() => setIsSOSOpen(false)} onSuccess={loadPortalData} />
-      <NotificationDrawer isOpen={isNotificationsOpen} onClose={() => setIsNotificationsOpen(false)} />
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} onLoginSuccess={handleLoginSuccess} />
-      <MobileBottomNav currentRole={currentRole} onRoleChange={setCurrentRole} onOpenSOS={() => setIsSOSOpen(true)} onOpenAuth={() => setIsAuthOpen(true)} />
-      <AIChatbot />
+          {activeTab === 'ai_advisor' && (
+            <AIAdvisorPanel
+              selectedZone={selectedZone}
+              activeSimulation={activeSimulation}
+              currentTelemetry={telemetry}
+              activePrompt={activeAIPrompt}
+              onClearActivePrompt={() => setActiveAIPrompt(null)}
+            />
+          )}
+
+          {activeTab === 'scenarios' && (
+            <ScenarioComparison
+              scenarios={savedScenarios}
+              activeSimulation={activeSimulation}
+              onApplyScenario={(scen) => {
+                if (scen.simulationDelta) {
+                  setActiveSimulation(scen.simulationDelta);
+                }
+              }}
+              onResetToBaseline={() => {
+                setActiveSimulation(null);
+                setActiveIncident(null);
+              }}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* 4. MODALS */}
+      <DataTransparencyModal
+        isOpen={isDataModalOpen}
+        onClose={() => setIsDataModalOpen(false)}
+      />
+
+      <ReportGeneratorModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        selectedZone={selectedZone}
+        activeSimulation={activeSimulation}
+        currentTelemetry={telemetry}
+      />
     </div>
   );
 }
