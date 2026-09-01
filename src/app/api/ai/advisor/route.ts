@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateGroundedUrbanAdvice } from '@/lib/gemini';
 import { AIAdvisorQueryPayload } from '@/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const payload = (await request.json()) as AIAdvisorQueryPayload;
