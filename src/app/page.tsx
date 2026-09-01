@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Header from '@/components/UI/Header';
+import MobileBottomNav from '@/components/UI/MobileBottomNav';
 import RealTimeTelemetry from '@/components/Panels/RealTimeTelemetry';
 import DigitalTwinMap from '@/components/Map/DigitalTwinMap';
 import ZoneInspector from '@/components/Panels/ZoneInspector';
@@ -24,6 +25,7 @@ import { GURUGRAM_ROADS } from '@/data/gurugram/roads';
 import { GURUGRAM_FLOOD_RISK_ZONES } from '@/data/gurugram/floodRiskZones';
 import { GURUGRAM_HEAT_RISK_ZONES } from '@/data/gurugram/heatRiskZones';
 import { runWhatIfSimulation } from '@/lib/simulation/engine';
+import { Map as MapIcon, ArrowLeft, Building2, Sliders, Shield, Activity, Globe } from 'lucide-react';
 
 import { 
   City, 
@@ -40,7 +42,7 @@ export default function UrbanTwinCommandCenter() {
   const [activeCity, setActiveCity] = useState<City>(getActiveCity('gurugram'));
   const [userRole, setUserRole] = useState<UserRole>('urban_planner');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios'>('inspector');
+  const [activeTab, setActiveTab] = useState<'map' | 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios'>('inspector');
 
   // GIS Selection & Entities
   const [selectedZone, setSelectedZone] = useState<Zone | null>(GURUGRAM_SECTORS[0]); // Default DLF Cyber City
@@ -134,7 +136,7 @@ export default function UrbanTwinCommandCenter() {
     if (zone) {
       setMapCenter(zone.center);
       setMapZoom(13.8);
-      setActiveTab('inspector');
+      // On desktop keep tab, on mobile keep map visible or open inspector
     }
   };
 
@@ -198,7 +200,6 @@ export default function UrbanTwinCommandCenter() {
     setActiveTab('scenarios');
   };
 
-  // Quick Demo Triggers
   const handleTriggerQuickDemo = (demoType: 'nh48_closure' | 'fire_sec65') => {
     if (demoType === 'nh48_closure') {
       const result = runWhatIfSimulation('road_closure', {
@@ -224,12 +225,12 @@ export default function UrbanTwinCommandCenter() {
     }
   };
 
-  // Guided Tour Step Action Handler
   const handleTourStepAction = (step: number) => {
     if (step === 1) {
       handleSelectZone(GURUGRAM_SECTORS[0]);
-    } else if (step === 2) {
       setActiveTab('inspector');
+    } else if (step === 2) {
+      setActiveTab('map');
     } else if (step === 3) {
       handleTriggerQuickDemo('nh48_closure');
     } else if (step === 4) {
@@ -256,18 +257,20 @@ export default function UrbanTwinCommandCenter() {
         onOpenDataModal={() => setIsDataModalOpen(true)}
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onOpenTourModal={() => setIsTourModalOpen(true)}
-        activeTab={activeTab}
+        activeTab={activeTab === 'map' ? 'inspector' : activeTab}
         onSelectTab={setActiveTab}
         onTriggerQuickDemo={handleTriggerQuickDemo}
       />
 
-      {/* 2. REAL-TIME ENVIRONMENTAL TELEMETRY */}
-      <RealTimeTelemetry telemetry={telemetry} />
+      {/* 2. REAL-TIME TELEMETRY TICKER */}
+      <div className="overflow-x-auto no-scrollbar">
+        <RealTimeTelemetry telemetry={telemetry} />
+      </div>
 
       {/* 3. MAIN COMMAND CANVAS */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* LEFT / CENTER: GIS DIGITAL TWIN MAP */}
-        <div className="flex-1 h-full relative">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative pb-14 md:pb-0">
+        {/* MAP CANVAS (Desktop: always left side; Mobile: visible when activeTab === 'map') */}
+        <div className={`flex-1 h-full relative ${activeTab !== 'map' ? 'hidden md:block' : 'block w-full'}`}>
           <DigitalTwinMap
             center={mapCenter}
             zoom={mapZoom}
@@ -288,80 +291,129 @@ export default function UrbanTwinCommandCenter() {
             mapClickMode={mapClickMode}
             onMapClickCoord={handleMapClickCoord}
           />
+
+          {/* Mobile Bottom Quick Pill when on Map view */}
+          {selectedZone && activeTab === 'map' && (
+            <div className="md:hidden absolute bottom-16 left-3 right-3 z-[1000] bg-slate-900/95 border border-cyan-500/50 backdrop-blur-xl p-3 rounded-2xl shadow-2xl flex items-center justify-between text-xs">
+              <div>
+                <span className="text-[10px] font-bold text-cyan-400 font-mono uppercase">{selectedZone.sectorNumber}</span>
+                <h4 className="font-extrabold text-slate-100 truncate max-w-[190px]">{selectedZone.name}</h4>
+                <div className="text-[10px] text-slate-400">
+                  Pop: <b>{selectedZone.population.toLocaleString('en-IN')}</b> • AQI: <b>{selectedZone.avgAqi}</b>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveTab('inspector')}
+                className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center gap-1 shadow-md shadow-cyan-600/30 shrink-0"
+              >
+                <span>Inspect</span> →
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* RIGHT: ANALYTICS & DECISION STUDIO DRAWER */}
-        <div className="w-[430px] lg:w-[480px] h-full bg-slate-950/95 border-l border-slate-800 flex flex-col z-30 shadow-2xl backdrop-blur-xl">
-          {activeTab === 'inspector' && (
-            <ZoneInspector
-              selectedZone={selectedZone}
-              onClearSelection={() => setSelectedZone(null)}
-              onAskAI={handleAskAI}
-              onStartSimulationInZone={handleStartSimulationInZone}
-              fireStations={GURUGRAM_FIRE_STATIONS}
-              hospitals={GURUGRAM_HOSPITALS}
-            />
-          )}
+        {/* RIGHT / FULL-SCREEN STUDIO DRAWER */}
+        <div className={`w-full md:w-[430px] lg:w-[480px] h-full bg-slate-950/95 border-l border-slate-800 flex flex-col z-30 shadow-2xl backdrop-blur-xl ${
+          activeTab === 'map' ? 'hidden md:flex' : 'flex'
+        }`}>
+          {/* Mobile Back to Map Header */}
+          <div className="md:hidden flex items-center justify-between p-3 border-b border-slate-800 bg-slate-900/80">
+            <button
+              onClick={() => setActiveTab('map')}
+              className="flex items-center gap-1.5 text-xs font-bold text-cyan-400 bg-slate-800 px-3 py-1.5 rounded-xl"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Back to GIS Map
+            </button>
+            <span className="text-xs font-extrabold text-slate-200 uppercase tracking-wider">
+              {activeTab.toUpperCase().replace('_', ' ')}
+            </span>
+          </div>
 
-          {activeTab === 'simulator' && (
-            <WhatIfSimulator
-              roads={GURUGRAM_ROADS}
-              sectors={GURUGRAM_SECTORS}
-              selectedZone={selectedZone}
-              activeSimulation={activeSimulation}
-              onSimulationComplete={setActiveSimulation}
-              onClearSimulation={() => setActiveSimulation(null)}
-              onSaveScenario={handleSaveScenario}
-              onAskAI={handleAskAI}
-              onEnableMapDrop={(mode) => setMapClickMode(mode)}
-              droppedCoords={droppedCoords}
-            />
-          )}
+          <div className="flex-1 overflow-hidden">
+            {activeTab === 'inspector' && (
+              <ZoneInspector
+                selectedZone={selectedZone}
+                onClearSelection={() => setSelectedZone(null)}
+                onAskAI={handleAskAI}
+                onStartSimulationInZone={handleStartSimulationInZone}
+                fireStations={GURUGRAM_FIRE_STATIONS}
+                hospitals={GURUGRAM_HOSPITALS}
+              />
+            )}
 
-          {activeTab === 'emergency' && (
-            <EmergencyDispatcher
-              hospitals={GURUGRAM_HOSPITALS}
-              fireStations={GURUGRAM_FIRE_STATIONS}
-              policeStations={GURUGRAM_POLICE_STATIONS}
-              sectors={GURUGRAM_SECTORS}
-              activeIncident={activeIncident}
-              onDispatchIncident={setActiveIncident}
-              onClearIncident={() => setActiveIncident(null)}
-              onEnableMapDrop={(mode) => setMapClickMode(mode)}
-              onAskAI={handleAskAI}
-              droppedCoords={droppedCoords}
-            />
-          )}
+            {activeTab === 'simulator' && (
+              <WhatIfSimulator
+                roads={GURUGRAM_ROADS}
+                sectors={GURUGRAM_SECTORS}
+                selectedZone={selectedZone}
+                activeSimulation={activeSimulation}
+                onSimulationComplete={setActiveSimulation}
+                onClearSimulation={() => setActiveSimulation(null)}
+                onSaveScenario={handleSaveScenario}
+                onAskAI={handleAskAI}
+                onEnableMapDrop={(mode) => {
+                  setMapClickMode(mode);
+                  setActiveTab('map'); // Switch to map on mobile so user can tap
+                }}
+                droppedCoords={droppedCoords}
+              />
+            )}
 
-          {activeTab === 'ai_advisor' && (
-            <AIAdvisorPanel
-              selectedZone={selectedZone}
-              activeSimulation={activeSimulation}
-              currentTelemetry={telemetry}
-              activePrompt={activeAIPrompt}
-              onClearActivePrompt={() => setActiveAIPrompt(null)}
-            />
-          )}
+            {activeTab === 'emergency' && (
+              <EmergencyDispatcher
+                hospitals={GURUGRAM_HOSPITALS}
+                fireStations={GURUGRAM_FIRE_STATIONS}
+                policeStations={GURUGRAM_POLICE_STATIONS}
+                sectors={GURUGRAM_SECTORS}
+                activeIncident={activeIncident}
+                onDispatchIncident={setActiveIncident}
+                onClearIncident={() => setActiveIncident(null)}
+                onEnableMapDrop={(mode) => {
+                  setMapClickMode(mode);
+                  setActiveTab('map'); // Switch to map on mobile so user can tap
+                }}
+                onAskAI={handleAskAI}
+                droppedCoords={droppedCoords}
+              />
+            )}
 
-          {activeTab === 'scenarios' && (
-            <ScenarioComparison
-              scenarios={savedScenarios}
-              activeSimulation={activeSimulation}
-              onApplyScenario={(scen) => {
-                if (scen.simulationDelta) {
-                  setActiveSimulation(scen.simulationDelta);
-                }
-              }}
-              onResetToBaseline={() => {
-                setActiveSimulation(null);
-                setActiveIncident(null);
-              }}
-            />
-          )}
+            {activeTab === 'ai_advisor' && (
+              <AIAdvisorPanel
+                selectedZone={selectedZone}
+                activeSimulation={activeSimulation}
+                currentTelemetry={telemetry}
+                activePrompt={activeAIPrompt}
+                onClearActivePrompt={() => setActiveAIPrompt(null)}
+              />
+            )}
+
+            {activeTab === 'scenarios' && (
+              <ScenarioComparison
+                scenarios={savedScenarios}
+                activeSimulation={activeSimulation}
+                onApplyScenario={(scen) => {
+                  if (scen.simulationDelta) {
+                    setActiveSimulation(scen.simulationDelta);
+                  }
+                }}
+                onResetToBaseline={() => {
+                  setActiveSimulation(null);
+                  setActiveIncident(null);
+                }}
+              />
+            )}
+          </div>
         </div>
       </div>
 
-      {/* 4. MODALS */}
+      {/* 4. MOBILE BOTTOM NAVIGATION */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        selectedZoneName={selectedZone?.name}
+      />
+
+      {/* 5. MODALS */}
       <GuidedTourModal
         isOpen={isTourModalOpen}
         onClose={() => setIsTourModalOpen(false)}
