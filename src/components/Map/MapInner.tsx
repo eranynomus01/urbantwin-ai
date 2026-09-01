@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { 
   MapContainer, 
   TileLayer, 
@@ -36,41 +36,60 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Custom SVG Icons for high-tech command center aesthetic
-const createCustomIcon = (bgColor: string, symbol: string, size: number = 32) => {
+// Custom SVG Icons
+const createCustomIcon = (bgColor: string, symbol: string, size: number = 32, label?: string) => {
   return L.divIcon({
     className: 'custom-leaflet-marker',
     html: `
-      <div style="
-        background-color: ${bgColor};
-        width: ${size}px;
-        height: ${size}px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: ${size * 0.45}px;
-        box-shadow: 0 0 12px ${bgColor}99, 0 2px 6px rgba(0,0,0,0.6);
-        border: 2px solid white;
-      ">
-        ${symbol}
+      <div style="position: relative; display: flex; flex-direction: column; align-items: center;">
+        <div style="
+          background-color: ${bgColor};
+          width: ${size}px;
+          height: ${size}px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-weight: bold;
+          font-size: ${size * 0.45}px;
+          box-shadow: 0 0 14px ${bgColor}cc, 0 3px 8px rgba(0,0,0,0.7);
+          border: 2px solid white;
+        ">
+          ${symbol}
+        </div>
+        ${label ? `
+          <div style="
+            position: absolute;
+            top: ${size + 2}px;
+            background: rgba(15, 23, 42, 0.9);
+            color: #e2e8f0;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: bold;
+            white-space: nowrap;
+            border: 1px solid rgba(255,255,255,0.2);
+            pointer-events: none;
+          ">
+            ${label}
+          </div>
+        ` : ''}
       </div>
     `,
-    iconSize: [size, size],
+    iconSize: [size, size + 16],
     iconAnchor: [size / 2, size / 2],
     popupAnchor: [0, -size / 2],
   });
 };
 
-const hospitalIcon = createCustomIcon('#ef4444', '🏥', 30);
-const fireIcon = createCustomIcon('#f97316', '🚒', 30);
+const hospitalIcon = createCustomIcon('#ef4444', '🏥', 32);
+const fireIcon = createCustomIcon('#f97316', '🚒', 32);
 const policeIcon = createCustomIcon('#3b82f6', '👮', 28);
 const parkIcon = createCustomIcon('#10b981', '🌳', 28);
 const metroIcon = createCustomIcon('#8b5cf6', '🚇', 28);
-const incidentIcon = createCustomIcon('#dc2626', '⚠️', 36);
-const proposedIcon = createCustomIcon('#06b6d4', '✨', 34);
+const incidentIcon = createCustomIcon('#dc2626', '🚨', 38, 'ACTIVE INCIDENT');
+const proposedIcon = createCustomIcon('#06b6d4', '✨', 34, 'PROPOSED');
 
 interface MapInnerProps {
   center: [number, number];
@@ -105,7 +124,6 @@ interface MapInnerProps {
   onMapClickCoord: (coord: [number, number]) => void;
 }
 
-// Controller component to smoothly pan/zoom when sector is selected
 function MapRecenter({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useEffect(() => {
@@ -114,7 +132,6 @@ function MapRecenter({ center, zoom }: { center: [number, number]; zoom: number 
   return null;
 }
 
-// Click event handler
 function MapEvents({ onMapClick, mode }: { onMapClick: (coord: [number, number]) => void; mode: string }) {
   useMapEvents({
     click(e) {
@@ -145,8 +162,6 @@ export default function MapInner({
   mapClickMode,
   onMapClickCoord,
 }: MapInnerProps) {
-  // Tile layer URL
-  // Dark CartoDB vs Standard OpenStreetMap
   const tileUrl = isDarkMode
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
     : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
@@ -168,12 +183,11 @@ export default function MapInner({
 
         <TileLayer attribution={attribution} url={tileUrl} />
 
-        {/* 1. SECTOR BOUNDARIES & POPULATION DENSITY */}
+        {/* 1. SECTOR BOUNDARIES & POPULATION CHOROPLETH */}
         {sectors.map((zone) => {
           const isSelected = selectedZone?.id === zone.id;
-          // Choropleth color based on population density
           let fillColor = '#3b82f6';
-          let fillOpacity = 0.15;
+          let fillOpacity = 0.12;
 
           if (layers.populationDensity) {
             if (zone.populationDensity > 20000) fillColor = '#ef4444';
@@ -191,7 +205,7 @@ export default function MapInner({
               positions={zone.boundary}
               pathOptions={{
                 color: isSelected ? '#06b6d4' : '#64748b',
-                weight: isSelected ? 3 : 1.5,
+                weight: isSelected ? 3.5 : 1.5,
                 fillColor,
                 fillOpacity,
                 dashArray: isSelected ? undefined : '4, 4'
@@ -203,22 +217,22 @@ export default function MapInner({
                 }
               }}
             >
-              <Popup className="custom-popup">
-                <div className="text-xs p-1 text-slate-800 dark:text-slate-100">
-                  <div className="font-bold text-sm text-cyan-500 mb-1">{zone.name}</div>
+              <Popup>
+                <div className="text-xs p-1 text-slate-900">
+                  <div className="font-bold text-sm text-cyan-700 mb-1">{zone.name}</div>
                   <div className="grid grid-cols-2 gap-1 mb-2">
-                    <div><span className="text-slate-400">Sector:</span> {zone.sectorNumber}</div>
-                    <div><span className="text-slate-400">Type:</span> {zone.zoneType}</div>
-                    <div><span className="text-slate-400">Pop:</span> {zone.population.toLocaleString('en-IN')}</div>
-                    <div><span className="text-slate-400">Density:</span> {zone.populationDensity}/km²</div>
-                    <div><span className="text-slate-400">AQI:</span> {zone.avgAqi}</div>
-                    <div><span className="text-slate-400">Flood:</span> {zone.floodRiskScore}/10</div>
+                    <div><span className="text-slate-500">Sector:</span> <b>{zone.sectorNumber}</b></div>
+                    <div><span className="text-slate-500">Type:</span> <b>{zone.zoneType}</b></div>
+                    <div><span className="text-slate-500">Pop:</span> <b>{zone.population.toLocaleString('en-IN')}</b></div>
+                    <div><span className="text-slate-500">Density:</span> <b>{zone.populationDensity}/km²</b></div>
+                    <div><span className="text-slate-500">AQI:</span> <b>{zone.avgAqi}</b></div>
+                    <div><span className="text-slate-500">Flood:</span> <b>{zone.floodRiskScore}/10</b></div>
                   </div>
                   <button
                     onClick={() => onSelectZone(zone)}
-                    className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-1 px-2 rounded text-center transition"
+                    className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-1 px-2 rounded text-center transition"
                   >
-                    Inspect Zone Details
+                    Open Deep Sector Metrics
                   </button>
                 </div>
               </Popup>
@@ -226,7 +240,7 @@ export default function MapInner({
           );
         })}
 
-        {/* 2. FLOOD RISK VECTORS & BASINS */}
+        {/* 2. FLOOD RISK BASINS */}
         {layers.floodZones &&
           floodZones.map((fz) => (
             <Polygon
@@ -237,21 +251,19 @@ export default function MapInner({
                 fillColor: '#3b82f6',
                 fillOpacity: 0.35,
                 weight: 2,
-                dashArray: '3, 6'
+                dashArray: '4, 6'
               }}
             >
               <Popup>
-                <div className="text-xs p-1">
-                  <div className="font-bold text-blue-600">{fz.name}</div>
-                  <div className="text-slate-600 my-1">
-                    Risk Level: <span className="font-semibold text-red-600">{fz.riskLevel}</span> (Elev: {fz.elevationMeters}m)
+                <div className="text-xs p-1 text-slate-900">
+                  <div className="font-bold text-blue-700">{fz.name}</div>
+                  <div className="my-1">
+                    Risk Level: <b className="text-red-600">{fz.riskLevel}</b> (Elev: {fz.elevationMeters}m)
                   </div>
-                  <div className="text-slate-500 text-[11px] mb-1">
-                    Max Waterlogging: {fz.historicalWaterloggingDepthCm} cm
+                  <div className="text-[11px] text-slate-600">
+                    Max Waterlogging Depth: <b>{fz.historicalWaterloggingDepthCm} cm</b>
                   </div>
-                  <div className="text-slate-500 text-[11px]">
-                    Corridor: {fz.drainageCorridor}
-                  </div>
+                  <div className="text-[11px] text-slate-500">Corridor: {fz.drainageCorridor}</div>
                 </div>
               </Popup>
             </Polygon>
@@ -271,12 +283,12 @@ export default function MapInner({
               }}
             >
               <Popup>
-                <div className="text-xs p-1">
-                  <div className="font-bold text-orange-600">{hz.name}</div>
+                <div className="text-xs p-1 text-slate-900">
+                  <div className="font-bold text-orange-700">{hz.name}</div>
                   <div className="my-1">
-                    UHI Thermal Delta: <span className="font-bold text-red-600">+{hz.surfaceTempDeltaC}°C</span>
+                    UHI Thermal Delta: <b className="text-red-600">+{hz.surfaceTempDeltaC}°C</b>
                   </div>
-                  <div className="text-slate-500 text-[11px]">
+                  <div className="text-[11px] text-slate-600">
                     Impervious Surface: {hz.imperviousSurfacePct}% | Veg Deficit: {hz.vegetationDeficitPct}%
                   </div>
                 </div>
@@ -284,7 +296,7 @@ export default function MapInner({
             </Polygon>
           ))}
 
-        {/* 4. MAJOR ARTERIAL ROADS */}
+        {/* 4. MAJOR ROADS & HIGHWAYS */}
         {layers.roads &&
           roads.map((road) => {
             const isClosed = activeSimulation?.affectedRoadIds?.includes(road.id);
@@ -304,14 +316,14 @@ export default function MapInner({
                   color: roadColor,
                   weight: isClosed ? 6 : road.lanes >= 6 ? 4 : 2.5,
                   dashArray: isClosed ? '6, 6' : undefined,
-                  opacity: 0.85
+                  opacity: 0.9
                 }}
               >
                 <Popup>
-                  <div className="text-xs p-1">
+                  <div className="text-xs p-1 text-slate-900">
                     <div className="font-bold">{road.name}</div>
                     <div>Type: {road.highwayType} ({road.lanes} lanes)</div>
-                    <div>Speed: {road.avgSpeedKmh} km/h (Limit: {road.maxSpeedKmh} km/h)</div>
+                    <div>Avg Speed: {road.avgSpeedKmh} km/h (Limit: {road.maxSpeedKmh} km/h)</div>
                     <div>Congestion: {road.congestionLevel}</div>
                     {isClosed && (
                       <div className="mt-1 text-red-600 font-bold bg-red-100 p-1 rounded">
@@ -324,7 +336,7 @@ export default function MapInner({
             );
           })}
 
-        {/* 5. DETOUR ROUTE (IF ROAD CLOSED UNDER SIMULATION) */}
+        {/* 5. DETOUR ROUTE (IF ROAD CLOSED) */}
         {activeSimulation?.detourRouteCoordinates && (
           <Polyline
             positions={activeSimulation.detourRouteCoordinates}
@@ -337,19 +349,19 @@ export default function MapInner({
           />
         )}
 
-        {/* 6. EMERGENCY ROUTE LINE */}
+        {/* 6. EMERGENCY RESPONSE ROUTE */}
         {activeIncident && activeIncident.primaryRouteCoordinates.length > 0 && (
           <Polyline
             positions={activeIncident.primaryRouteCoordinates}
             pathOptions={{
               color: '#ef4444',
               weight: 5,
-              opacity: 0.9
+              opacity: 0.95
             }}
           />
         )}
 
-        {/* 7. EMERGENCY ISOCHRONES / COVERAGE BUFFERS */}
+        {/* 7. EMERGENCY ISOCHRONES */}
         {layers.coverageIsochrones && (
           <>
             {fireStations.map((fs) => (
@@ -383,7 +395,7 @@ export default function MapInner({
           </>
         )}
 
-        {/* 8. SIMULATION PROPOSED COVERAGE BUFFER */}
+        {/* 8. SIMULATION NEW FACILITY COVERAGE BUFFER */}
         {activeSimulation?.newCoveragePolygon && (
           <Polygon
             positions={activeSimulation.newCoveragePolygon}
@@ -391,7 +403,7 @@ export default function MapInner({
               color: '#06b6d4',
               fillColor: '#06b6d4',
               fillOpacity: 0.25,
-              weight: 2,
+              weight: 2.5,
               dashArray: '6, 6'
             }}
           />
@@ -402,16 +414,16 @@ export default function MapInner({
           hospitals.map((hosp) => (
             <Marker key={hosp.id} position={hosp.coordinates} icon={hospitalIcon}>
               <Popup>
-                <div className="text-xs p-1">
+                <div className="text-xs p-1 text-slate-900">
                   <div className="font-bold text-red-600">{hosp.name}</div>
                   <div className="text-slate-600 text-[11px] mb-1">{hosp.hospitalType}</div>
                   <div className="grid grid-cols-2 gap-1 my-1">
                     <div>Beds: <b>{hosp.totalBeds}</b></div>
                     <div>ICU Beds: <b>{hosp.icuBeds}</b></div>
                     <div>Ambulances: <b>{hosp.ambulanceCount}</b></div>
-                    <div>Radius: <b>{hosp.coverageRadiusKm} km</b></div>
+                    <div>Coverage: <b>{hosp.coverageRadiusKm} km</b></div>
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-1">Source: {hosp.source}</div>
+                  <div className="text-[10px] text-slate-500 mt-1">Source: {hosp.source}</div>
                 </div>
               </Popup>
             </Marker>
@@ -422,7 +434,7 @@ export default function MapInner({
           fireStations.map((fs) => (
             <Marker key={fs.id} position={fs.coordinates} icon={fireIcon}>
               <Popup>
-                <div className="text-xs p-1">
+                <div className="text-xs p-1 text-slate-900">
                   <div className="font-bold text-orange-600">{fs.name}</div>
                   <div className="grid grid-cols-2 gap-1 my-1">
                     <div>Engines: <b>{fs.fireEngines}</b></div>
@@ -430,8 +442,7 @@ export default function MapInner({
                     <div>Coverage: <b>{fs.coverageRadiusKm} km</b></div>
                     <div>Hydrant: <b>{fs.hydrantSupport ? 'Yes' : 'No'}</b></div>
                   </div>
-                  <div className="text-slate-500 text-[11px]">Phone: {fs.phone}</div>
-                  <div className="text-[10px] text-slate-400 mt-1">Source: {fs.source}</div>
+                  <div className="text-slate-600 text-[11px]">Phone: {fs.phone}</div>
                 </div>
               </Popup>
             </Marker>
@@ -442,12 +453,12 @@ export default function MapInner({
           policeStations.map((ps) => (
             <Marker key={ps.id} position={ps.coordinates} icon={policeIcon}>
               <Popup>
-                <div className="text-xs p-1">
+                <div className="text-xs p-1 text-slate-900">
                   <div className="font-bold text-blue-600">{ps.name}</div>
                   <div className="my-1">
                     Patrol Vehicles: <b>{ps.patrolVehicles}</b> | Radius: <b>{ps.jurisdictionRadiusKm} km</b>
                   </div>
-                  <div className="text-slate-500 text-[11px]">Phone: {ps.phone}</div>
+                  <div className="text-slate-600 text-[11px]">Phone: {ps.phone}</div>
                 </div>
               </Popup>
             </Marker>
@@ -458,12 +469,12 @@ export default function MapInner({
           parks.map((park) => (
             <Marker key={park.id} position={park.coordinates} icon={parkIcon}>
               <Popup>
-                <div className="text-xs p-1">
-                  <div className="font-bold text-emerald-600">{park.name}</div>
+                <div className="text-xs p-1 text-slate-900">
+                  <div className="font-bold text-emerald-700">{park.name}</div>
                   <div className="my-1">
                     Area: <b>{park.areaAcres} Acres</b> | Canopy: <b>{park.canopyCoveragePct}%</b>
                   </div>
-                  <div className="text-emerald-700 font-medium text-[11px]">
+                  <div className="text-emerald-800 font-semibold text-[11px]">
                     UHI Cooling Delta: -{park.uhiReductionC}°C (Buffer: {park.coolingRadiusM}m)
                   </div>
                 </div>
@@ -476,8 +487,8 @@ export default function MapInner({
           transitNodes.map((tn) => (
             <Marker key={tn.id} position={tn.coordinates} icon={metroIcon}>
               <Popup>
-                <div className="text-xs p-1">
-                  <div className="font-bold text-purple-600">{tn.name}</div>
+                <div className="text-xs p-1 text-slate-900">
+                  <div className="font-bold text-purple-700">{tn.name}</div>
                   <div className="text-slate-600 text-[11px]">{tn.lineName || tn.stopType}</div>
                   <div className="mt-1">
                     Daily Footfall: <b>{tn.dailyFootfall.toLocaleString('en-IN')}</b>
@@ -487,17 +498,17 @@ export default function MapInner({
             </Marker>
           ))}
 
-        {/* 14. ACTIVE EMERGENCY INCIDENT PIN */}
+        {/* 14. ACTIVE INCIDENT PIN */}
         {activeIncident && (
           <Marker position={activeIncident.location} icon={incidentIcon}>
             <Popup>
               <div className="text-xs p-1 text-red-600 font-bold">
-                🚨 {activeIncident.type.toUpperCase()} INCIDENT
+                🚨 {activeIncident.type.toUpperCase()} INCIDENT DISPATCH
                 <div className="text-slate-800 text-[11px] font-normal mt-1">
                   Location: {activeIncident.sectorName}
                 </div>
                 <div className="text-slate-600 text-[11px]">
-                  Population at Risk: <b>{activeIncident.populationWithin500m.toLocaleString('en-IN')}</b>
+                  Pop at Risk: <b>{activeIncident.populationWithin500m.toLocaleString('en-IN')}</b>
                 </div>
               </div>
             </Popup>
@@ -507,12 +518,12 @@ export default function MapInner({
 
       {/* Map Mode Indicator Overlay */}
       {mapClickMode !== 'inspect' && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-[1000] bg-cyan-900/90 text-cyan-200 backdrop-blur-md px-4 py-2 rounded-full border border-cyan-500/50 shadow-xl flex items-center gap-2 text-xs font-semibold animate-pulse">
+        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 z-[1000] bg-cyan-900/95 text-cyan-100 backdrop-blur-md px-5 py-2.5 rounded-full border border-cyan-400 shadow-2xl flex items-center gap-2 text-xs font-bold animate-bounce">
           <span>🎯</span>
           <span>
             {mapClickMode === 'simulation_drop'
-              ? 'Click anywhere on the map to place the Proposed Facility'
-              : 'Click on the map to trigger an Emergency Incident Dispatch'}
+              ? 'Click anywhere on the map to set the Proposed Facility Location'
+              : 'Click anywhere on the map to trigger an Emergency Incident Dispatch'}
           </span>
         </div>
       )}

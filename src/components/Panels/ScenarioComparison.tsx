@@ -7,15 +7,15 @@ import {
   GitCompare, 
   ShieldCheck, 
   TrendingUp, 
-  TrendingDown, 
   Flame, 
   HeartPulse, 
   CloudRain, 
   Car, 
   Trees, 
-  Plus, 
-  Check,
-  RotateCcw
+  RotateCcw,
+  CheckCircle2,
+  Sparkles,
+  Award
 } from 'lucide-react';
 
 interface ScenarioComparisonProps {
@@ -87,7 +87,6 @@ export const PRESET_SCENARIO_B: ScenarioItem = {
 
 export default function ScenarioComparison({
   scenarios,
-  activeSimulation,
   onApplyScenario,
   onResetToBaseline,
 }: ScenarioComparisonProps) {
@@ -113,17 +112,17 @@ export default function ScenarioComparison({
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <GitCompare className="w-4 h-4 text-cyan-400" />
-            <h3 className="font-bold text-sm text-slate-100">Scenario Decision Deck</h3>
+            <h3 className="font-extrabold text-sm text-slate-100">Scenario Decision Deck</h3>
           </div>
           <button
             onClick={onResetToBaseline}
-            className="text-slate-400 hover:text-white flex items-center gap-1 text-[11px] bg-slate-800 px-2 py-1 rounded"
+            className="text-slate-400 hover:text-white flex items-center gap-1 text-[11px] bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg transition"
           >
             <RotateCcw className="w-3 h-3" /> Baseline
           </button>
         </div>
 
-        {/* 1. SCENARIO SELECTOR HEADERS */}
+        {/* 1. SCENARIO CANDIDATE SELECTORS */}
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="block text-[10px] uppercase font-bold text-cyan-400 mb-1">
@@ -135,7 +134,7 @@ export default function ScenarioComparison({
                 const found = scenarioList.find((s) => s.id === e.target.value);
                 if (found) setSelectedScenarioA(found);
               }}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs truncate"
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-slate-200 text-xs truncate font-medium"
             >
               {scenarioList.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -155,7 +154,7 @@ export default function ScenarioComparison({
                 const found = scenarioList.find((s) => s.id === e.target.value);
                 if (found) setSelectedScenarioB(found);
               }}
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs truncate"
+              className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-slate-200 text-xs truncate font-medium"
             >
               {scenarioList.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -166,10 +165,49 @@ export default function ScenarioComparison({
           </div>
         </div>
 
-        {/* 2. SIDE-BY-SIDE KPI SCORECARD COMPARISON TABLE */}
-        <div className="bg-slate-900/90 rounded-xl border border-slate-800 overflow-hidden shadow-xl">
-          <div className="grid grid-cols-4 bg-slate-800/80 p-2.5 font-bold text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-700">
-            <span>Urban KPI</span>
+        {/* 2. OVERALL URBAN RESILIENCE SCORECARD */}
+        <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 rounded-2xl border border-cyan-500/30 p-3.5 space-y-2 shadow-xl">
+          <div className="flex items-center justify-between">
+            <span className="font-extrabold text-xs text-slate-100 flex items-center gap-1.5">
+              <Award className="w-4 h-4 text-cyan-400" /> Urban Resilience Index Comparison
+            </span>
+            <span className="text-[10px] text-slate-400 font-mono">Normalized 0–100 Scale</span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-center pt-1">
+            <div className="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800">
+              <span className="text-slate-400 text-[10px] block font-semibold">Baseline Gurugram</span>
+              <span className="text-lg font-black text-slate-300">
+                {BASELINE_SCENARIO.kpis.overallUrbanResilienceScore}
+              </span>
+            </div>
+
+            <div className="bg-cyan-950/60 p-2.5 rounded-xl border border-cyan-700/60">
+              <span className="text-cyan-300 text-[10px] block font-bold truncate">Scenario A</span>
+              <span className="text-lg font-black text-cyan-400">
+                {selectedScenarioA.kpis.overallUrbanResilienceScore}
+                <span className="text-[10px] text-emerald-400 ml-1">
+                  (+{(selectedScenarioA.kpis.overallUrbanResilienceScore - BASELINE_SCENARIO.kpis.overallUrbanResilienceScore).toFixed(1)})
+                </span>
+              </span>
+            </div>
+
+            <div className="bg-blue-950/60 p-2.5 rounded-xl border border-blue-700/60">
+              <span className="text-blue-300 text-[10px] block font-bold truncate">Scenario B</span>
+              <span className="text-lg font-black text-blue-400">
+                {selectedScenarioB.kpis.overallUrbanResilienceScore}
+                <span className="text-[10px] text-emerald-400 ml-1">
+                  (+{(selectedScenarioB.kpis.overallUrbanResilienceScore - BASELINE_SCENARIO.kpis.overallUrbanResilienceScore).toFixed(1)})
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. SIDE-BY-SIDE KPI TABLE */}
+        <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+          <div className="grid grid-cols-4 bg-slate-950 p-2.5 font-bold text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-800">
+            <span>Metric</span>
             <span className="text-center text-slate-400">Baseline</span>
             <span className="text-center text-cyan-400">Scenario A</span>
             <span className="text-center text-blue-400">Scenario B</span>
@@ -193,14 +231,14 @@ export default function ScenarioComparison({
                     <span className="truncate" title={kpi.label}>{kpi.label}</span>
                   </div>
 
-                  <div className="text-center text-slate-400 font-mono">
+                  <div className="text-center text-slate-400 font-mono font-medium">
                     {baseVal}{kpi.unit}
                   </div>
 
                   <div className={`text-center font-mono font-bold ${isABetter ? 'text-emerald-400' : 'text-slate-300'}`}>
                     {aVal}{kpi.unit}
                     {aVal !== baseVal && (
-                      <span className="block text-[9px] opacity-75">
+                      <span className="block text-[9px] opacity-80">
                         {aVal > baseVal ? '+' : ''}{(aVal - baseVal).toFixed(1)}
                       </span>
                     )}
@@ -209,7 +247,7 @@ export default function ScenarioComparison({
                   <div className={`text-center font-mono font-bold ${isBBetter ? 'text-emerald-400' : 'text-slate-300'}`}>
                     {bVal}{kpi.unit}
                     {bVal !== baseVal && (
-                      <span className="block text-[9px] opacity-75">
+                      <span className="block text-[9px] opacity-80">
                         {bVal > baseVal ? '+' : ''}{(bVal - baseVal).toFixed(1)}
                       </span>
                     )}
@@ -220,40 +258,36 @@ export default function ScenarioComparison({
           </div>
         </div>
 
-        {/* 3. SCENARIO IMPACT SUMMARIES */}
+        {/* 4. SCENARIO SUMMARIES & ACTIONS */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-slate-800/60 border border-cyan-500/30 rounded-xl p-3 space-y-1.5">
-            <span className="font-bold text-cyan-400 text-[11px] block truncate">
+          <div className="bg-slate-900/90 border border-cyan-500/40 rounded-2xl p-3.5 space-y-2">
+            <span className="font-extrabold text-cyan-400 text-[11px] block truncate">
               {selectedScenarioA.name}
             </span>
             <p className="text-[11px] text-slate-300 line-clamp-3">
               {selectedScenarioA.description}
             </p>
-            <div className="pt-2">
-              <button
-                onClick={() => onApplyScenario(selectedScenarioA)}
-                className="w-full bg-cyan-600/80 hover:bg-cyan-500 text-white font-semibold py-1.5 px-2 rounded text-xs transition"
-              >
-                Apply Scenario A to Twin
-              </button>
-            </div>
+            <button
+              onClick={() => onApplyScenario(selectedScenarioA)}
+              className="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-2 rounded-xl text-xs transition shadow-md shadow-cyan-600/20"
+            >
+              Apply Scenario A to Twin
+            </button>
           </div>
 
-          <div className="bg-slate-800/60 border border-blue-500/30 rounded-xl p-3 space-y-1.5">
-            <span className="font-bold text-blue-400 text-[11px] block truncate">
+          <div className="bg-slate-900/90 border border-blue-500/40 rounded-2xl p-3.5 space-y-2">
+            <span className="font-extrabold text-blue-400 text-[11px] block truncate">
               {selectedScenarioB.name}
             </span>
             <p className="text-[11px] text-slate-300 line-clamp-3">
               {selectedScenarioB.description}
             </p>
-            <div className="pt-2">
-              <button
-                onClick={() => onApplyScenario(selectedScenarioB)}
-                className="w-full bg-blue-600/80 hover:bg-blue-500 text-white font-semibold py-1.5 px-2 rounded text-xs transition"
-              >
-                Apply Scenario B to Twin
-              </button>
-            </div>
+            <button
+              onClick={() => onApplyScenario(selectedScenarioB)}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-2 rounded-xl text-xs transition shadow-md shadow-blue-600/20"
+            >
+              Apply Scenario B to Twin
+            </button>
           </div>
         </div>
       </div>

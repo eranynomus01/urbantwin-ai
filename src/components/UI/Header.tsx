@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { City, UserRole } from '@/types';
 import { SUPPORTED_CITIES } from '@/data/cities';
 import { 
@@ -14,7 +14,11 @@ import {
   UserCheck, 
   ChevronDown, 
   Activity,
-  Globe
+  Globe,
+  Compass,
+  Zap,
+  Clock,
+  Sparkles
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -26,8 +30,10 @@ interface HeaderProps {
   onToggleTheme: () => void;
   onOpenDataModal: () => void;
   onOpenReportModal: () => void;
+  onOpenTourModal: () => void;
   activeTab: 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios';
   onSelectTab: (tab: 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios') => void;
+  onTriggerQuickDemo: (demoType: 'nh48_closure' | 'fire_sec65') => void;
 }
 
 export default function Header({
@@ -39,13 +45,35 @@ export default function Header({
   onToggleTheme,
   onOpenDataModal,
   onOpenReportModal,
+  onOpenTourModal,
   activeTab,
   onSelectTab,
+  onTriggerQuickDemo,
 }: HeaderProps) {
+  const [currentTime, setCurrentTime] = useState('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(
+        now.toLocaleTimeString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }) + ' IST'
+      );
+    };
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <header className="bg-slate-950/95 border-b border-slate-800 px-4 py-2 text-slate-100 flex flex-wrap items-center justify-between gap-3 select-none">
       {/* Brand & City Selector */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 font-black text-base">
             UT
@@ -56,14 +84,18 @@ export default function Header({
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-700/60 text-cyan-400 font-mono">
                 v2.0
               </span>
+              <span className="hidden xl:inline-flex items-center gap-1 text-[10px] text-emerald-400 font-medium px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                Real GIS Active
+              </span>
             </div>
             <p className="text-[10px] text-slate-400 font-medium hidden sm:block">
-              Real-Time GIS Digital Twin & Decision Simulator
+              Real-Time Digital Twin & Decision Support System
             </p>
           </div>
         </div>
 
-        {/* 1. CITY SELECTOR (Requirement 3) */}
+        {/* 1. CITY SELECTOR */}
         <div className="relative">
           <select
             value={activeCity.id}
@@ -82,7 +114,7 @@ export default function Header({
                 disabled={!city.isActive}
                 className={!city.isActive ? 'text-slate-500 bg-slate-950' : 'text-slate-100 bg-slate-900'}
               >
-                {city.name}, {city.state} {city.isActive ? '• Active GIS' : '— (Pending Data)'}
+                {city.name}, {city.state} {city.isActive ? '• Active' : '— (Pending Data)'}
               </option>
             ))}
           </select>
@@ -118,43 +150,66 @@ export default function Header({
         })}
       </div>
 
-      {/* Role Switcher & Action Modals */}
+      {/* Actions, Quick Demo, Tour & Tools */}
       <div className="flex items-center gap-2">
-        {/* Role Selector (Requirement 21) */}
-        <div className="relative hidden md:block">
-          <select
-            value={userRole}
-            onChange={(e) => onSelectRole(e.target.value as UserRole)}
-            className="bg-slate-900 border border-slate-700 hover:border-slate-600 rounded-lg py-1.5 pl-2.5 pr-7 text-xs font-medium text-slate-300 focus:outline-none focus:ring-1 focus:ring-cyan-500 appearance-none cursor-pointer"
+        {/* Quick Demo Datalinks */}
+        <div className="hidden lg:flex items-center gap-1.5 border-r border-slate-800 pr-2">
+          <button
+            onClick={() => onTriggerQuickDemo('nh48_closure')}
+            className="px-2.5 py-1 rounded-lg bg-red-950/80 hover:bg-red-900/80 text-red-300 border border-red-800/80 text-[10px] font-bold flex items-center gap-1 transition shadow-sm"
+            title="Simulate 2-Hour NH-48 Highway Closure with Live OSRM Detour"
           >
-            <option value="urban_planner">Role: Urban Planner</option>
-            <option value="administrator">Role: Administrator</option>
-            <option value="public_viewer">Role: Public Viewer</option>
-          </select>
-          <UserCheck className="w-3.5 h-3.5 text-cyan-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Zap className="w-3 h-3 text-red-400" />
+            <span>NH-48 Detour Demo</span>
+          </button>
+
+          <button
+            onClick={() => onTriggerQuickDemo('fire_sec65')}
+            className="px-2.5 py-1 rounded-lg bg-orange-950/80 hover:bg-orange-900/80 text-orange-300 border border-orange-800/80 text-[10px] font-bold flex items-center gap-1 transition shadow-sm"
+            title="Simulate New Sector 65 Fire Station Isochrone Expansion"
+          >
+            <Sparkles className="w-3 h-3 text-orange-400" />
+            <span>New Fire Station Demo</span>
+          </button>
         </div>
 
-        {/* Data Transparency Modal Trigger (Requirement 15) */}
+        {/* Guided Tour Button */}
+        <button
+          onClick={onOpenTourModal}
+          className="bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/80 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-md shadow-cyan-950/40"
+          title="Interactive Platform Tour (60 seconds)"
+        >
+          <Compass className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="hidden sm:inline">Guided Tour</span>
+        </button>
+
+        {/* Data Transparency Modal Trigger */}
         <button
           onClick={onOpenDataModal}
-          className="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+          className="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
           title="Data Sources, Quality Audit (94.5%) & Licenses"
         >
           <Database className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden sm:inline">Data Sources</span>
+          <span className="hidden md:inline">Sources (94.5%)</span>
         </button>
 
-        {/* Report Generator Modal Trigger (Requirement 22) */}
+        {/* Report Generator Modal Trigger */}
         <button
           onClick={onOpenReportModal}
           className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-600/20 transition"
           title="Generate Executive Decision Report"
         >
           <FileText className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Export Report</span>
+          <span className="hidden md:inline">Export PDF</span>
         </button>
 
-        {/* Theme mode toggle */}
+        {/* Live IST Clock */}
+        <div className="hidden xl:flex items-center gap-1 text-[11px] text-slate-400 bg-slate-900 border border-slate-800 px-2 py-1 rounded-md font-mono">
+          <Clock className="w-3 h-3 text-cyan-400" />
+          <span>{currentTime || '18:45 IST'}</span>
+        </div>
+
+        {/* Theme toggle */}
         <button
           onClick={onToggleTheme}
           className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition"

@@ -15,9 +15,8 @@ import {
   SimulationResult,
   EmergencyIncident 
 } from '@/types';
-import { Layers, Eye, EyeOff, ShieldAlert, Sparkles, Navigation, CloudRain, Flame } from 'lucide-react';
+import { Layers, CloudRain, Flame, ShieldAlert, Navigation, MapPin } from 'lucide-react';
 
-// Dynamically import MapInner with SSR disabled
 const DynamicMapInner = dynamic(() => import('./MapInner'), {
   ssr: false,
   loading: () => (
@@ -69,35 +68,60 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
     setLayers((prev) => ({ ...prev, [layerKey]: !prev[layerKey] }));
   };
 
+  const activeLayerCount = Object.values(layers).filter(Boolean).length;
+
   return (
     <div className="relative w-full h-full overflow-hidden">
+      {/* 1. TOP SECTOR TELEPORT QUICK BAR */}
+      <div className="absolute top-3 left-4 z-[900] flex items-center gap-1.5 overflow-x-auto max-w-[calc(100%-240px)] pb-1 no-scrollbar">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300 bg-slate-900/90 backdrop-blur-md px-2 py-1.5 rounded-lg border border-slate-700/80 shrink-0 shadow-lg flex items-center gap-1">
+          <Navigation className="w-3 h-3 text-cyan-400" /> Jump to:
+        </span>
+        {props.sectors.map((sec) => {
+          const isSelected = props.selectedZone?.id === sec.id;
+          return (
+            <button
+              key={sec.id}
+              onClick={() => props.onSelectZone(sec)}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition shrink-0 backdrop-blur-md border shadow-md flex items-center gap-1 ${
+                isSelected
+                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-bold shadow-cyan-500/20'
+                  : 'bg-slate-900/85 hover:bg-slate-800 text-slate-300 border-slate-700/80'
+              }`}
+            >
+              <span>{sec.sectorNumber || sec.name.split(' ')[0]}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <DynamicMapInner {...props} layers={layers} />
 
-      {/* Floating Layer Switcher Toggle Button */}
-      <div className="absolute top-4 right-4 z-[900] flex flex-col gap-2">
+      {/* Floating Layer Control Button */}
+      <div className="absolute top-3 right-4 z-[900] flex flex-col gap-2">
         <button
           onClick={() => setIsLayerPanelOpen(!isLayerPanelOpen)}
-          className="bg-slate-900/90 hover:bg-slate-800 text-cyan-400 p-2.5 rounded-lg border border-cyan-500/40 shadow-xl backdrop-blur-md flex items-center gap-2 transition text-xs font-semibold"
+          className="bg-slate-900/95 hover:bg-slate-800 text-cyan-400 p-2.5 rounded-xl border border-cyan-500/40 shadow-xl backdrop-blur-md flex items-center gap-2 transition text-xs font-bold"
           title="Digital Twin Layers"
         >
           <Layers className="w-4 h-4 text-cyan-400" />
-          <span>Twin Layers</span>
+          <span>Layers ({activeLayerCount})</span>
         </button>
 
-        {/* Quick layer pills */}
+        {/* Quick layer quick-action buttons */}
         <div className="flex flex-col gap-1.5">
           <button
             onClick={() => toggleLayer('floodZones')}
             className={`p-2 rounded-lg border backdrop-blur-md flex items-center justify-between text-xs font-medium transition ${
               layers.floodZones
-                ? 'bg-blue-600/90 text-white border-blue-400 shadow-blue-500/20 shadow-lg'
-                : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+                ? 'bg-blue-600/90 text-white border-blue-400 shadow-blue-500/30 shadow-lg font-bold'
+                : 'bg-slate-900/85 text-slate-300 border-slate-700 hover:bg-slate-800'
             }`}
-            title="Toggle Flood Risk Basin Overlay"
+            title="Toggle Flood Risk Drainage Corridor"
           >
             <span className="flex items-center gap-1.5">
-              <CloudRain className="w-3.5 h-3.5" />
-              Flood Inundation
+              <CloudRain className="w-3.5 h-3.5 text-blue-400" />
+              Flood Basins
             </span>
           </button>
 
@@ -105,14 +129,14 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
             onClick={() => toggleLayer('heatZones')}
             className={`p-2 rounded-lg border backdrop-blur-md flex items-center justify-between text-xs font-medium transition ${
               layers.heatZones
-                ? 'bg-orange-600/90 text-white border-orange-400 shadow-orange-500/20 shadow-lg'
-                : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+                ? 'bg-orange-600/90 text-white border-orange-400 shadow-orange-500/30 shadow-lg font-bold'
+                : 'bg-slate-900/85 text-slate-300 border-slate-700 hover:bg-slate-800'
             }`}
             title="Toggle Urban Heat Island Hotspots"
           >
             <span className="flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5" />
-              Heat Island (UHI)
+              <Flame className="w-3.5 h-3.5 text-orange-400" />
+              Heat (UHI)
             </span>
           </button>
 
@@ -120,20 +144,20 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
             onClick={() => toggleLayer('coverageIsochrones')}
             className={`p-2 rounded-lg border backdrop-blur-md flex items-center justify-between text-xs font-medium transition ${
               layers.coverageIsochrones
-                ? 'bg-red-600/90 text-white border-red-400 shadow-red-500/20 shadow-lg'
-                : 'bg-slate-900/80 text-slate-300 border-slate-700 hover:bg-slate-800'
+                ? 'bg-red-600/90 text-white border-red-400 shadow-red-500/30 shadow-lg font-bold'
+                : 'bg-slate-900/85 text-slate-300 border-slate-700 hover:bg-slate-800'
             }`}
-            title="Toggle Emergency Isochrones"
+            title="Toggle Emergency Isochrone Buffers"
           >
             <span className="flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5" />
-              Response Coverage
+              <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+              Isochrones
             </span>
           </button>
         </div>
       </div>
 
-      {/* Expanded Multi-Layer Control Modal/Drawer */}
+      {/* Expanded Multi-Layer Control Drawer */}
       {isLayerPanelOpen && (
         <div className="absolute top-16 right-4 z-[950] w-64 bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-xl p-3.5 shadow-2xl text-slate-200 text-xs animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
@@ -149,7 +173,6 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
           </div>
 
           <div className="space-y-3">
-            {/* Infrastructure group */}
             <div>
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                 Infrastructure
@@ -175,17 +198,16 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
                       type="checkbox"
                       checked={layers[key as keyof typeof layers]}
                       onChange={() => toggleLayer(key as keyof typeof layers)}
-                      className="accent-cyan-500 rounded"
+                      className="accent-cyan-500 rounded cursor-pointer"
                     />
                   </label>
                 ))}
               </div>
             </div>
 
-            {/* Environmental & Risk */}
             <div>
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Risk & Environment
+                Risk & Population
               </div>
               <div className="space-y-1">
                 <label className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/80 cursor-pointer transition">
@@ -197,7 +219,7 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
                     type="checkbox"
                     checked={layers.floodZones}
                     onChange={() => toggleLayer('floodZones')}
-                    className="accent-cyan-500 rounded"
+                    className="accent-cyan-500 rounded cursor-pointer"
                   />
                 </label>
 
@@ -210,20 +232,20 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
                     type="checkbox"
                     checked={layers.heatZones}
                     onChange={() => toggleLayer('heatZones')}
-                    className="accent-cyan-500 rounded"
+                    className="accent-cyan-500 rounded cursor-pointer"
                   />
                 </label>
 
                 <label className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/80 cursor-pointer transition">
                   <span className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
-                    <span>Population Density Heatmap</span>
+                    <span>Population Density Choropleth</span>
                   </span>
                   <input
                     type="checkbox"
                     checked={layers.populationDensity}
                     onChange={() => toggleLayer('populationDensity')}
-                    className="accent-cyan-500 rounded"
+                    className="accent-cyan-500 rounded cursor-pointer"
                   />
                 </label>
 
@@ -236,7 +258,7 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
                     type="checkbox"
                     checked={layers.coverageIsochrones}
                     onChange={() => toggleLayer('coverageIsochrones')}
-                    className="accent-cyan-500 rounded"
+                    className="accent-cyan-500 rounded cursor-pointer"
                   />
                 </label>
               </div>
@@ -245,23 +267,23 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
         </div>
       )}
 
-      {/* Map Legend Footer Bar */}
-      <div className="absolute bottom-4 left-4 z-[900] bg-slate-900/85 backdrop-blur-md border border-slate-700/60 px-3 py-1.5 rounded-lg text-[11px] text-slate-300 flex items-center gap-4 shadow-lg hidden md:flex">
-        <span className="text-slate-400 font-semibold">Map Legend:</span>
+      {/* Map Legend Footer */}
+      <div className="absolute bottom-4 left-4 z-[900] bg-slate-900/90 backdrop-blur-md border border-slate-700/80 px-3 py-1.5 rounded-xl text-[11px] text-slate-300 flex items-center gap-4 shadow-xl hidden md:flex">
+        <span className="text-slate-400 font-bold">GIS Symbols:</span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> Hospital (Trauma)
+          <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm shadow-red-500"></span> Hospital
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span> Fire Station
+          <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-sm shadow-orange-500"></span> Fire Stn
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span> Rapid Metro
+          <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-sm shadow-purple-500"></span> Rapid Metro
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Eco Park
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500"></span> Eco-Park
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 border-b-2 border-amber-400"></span> NH-48 / Expressways
+          <span className="w-3 h-1 bg-amber-400 rounded"></span> NH-48 / Expressways
         </span>
       </div>
     </div>

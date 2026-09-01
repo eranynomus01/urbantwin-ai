@@ -8,9 +8,10 @@ import ZoneInspector from '@/components/Panels/ZoneInspector';
 import WhatIfSimulator from '@/components/Panels/WhatIfSimulator';
 import EmergencyDispatcher from '@/components/Panels/EmergencyDispatcher';
 import AIAdvisorPanel from '@/components/Panels/AIAdvisorPanel';
-import ScenarioComparison, { BASELINE_SCENARIO, PRESET_SCENARIO_A, PRESET_SCENARIO_B } from '@/components/Panels/ScenarioComparison';
+import ScenarioComparison from '@/components/Panels/ScenarioComparison';
 import DataTransparencyModal from '@/components/Panels/DataTransparencyModal';
 import ReportGeneratorModal from '@/components/Panels/ReportGeneratorModal';
+import GuidedTourModal from '@/components/Panels/GuidedTourModal';
 
 import { SUPPORTED_CITIES, getActiveCity } from '@/data/cities';
 import { GURUGRAM_SECTORS } from '@/data/gurugram/sectors';
@@ -22,6 +23,7 @@ import { GURUGRAM_TRANSIT_NODES } from '@/data/gurugram/transit';
 import { GURUGRAM_ROADS } from '@/data/gurugram/roads';
 import { GURUGRAM_FLOOD_RISK_ZONES } from '@/data/gurugram/floodRiskZones';
 import { GURUGRAM_HEAT_RISK_ZONES } from '@/data/gurugram/heatRiskZones';
+import { runWhatIfSimulation } from '@/lib/simulation/engine';
 
 import { 
   City, 
@@ -41,7 +43,7 @@ export default function UrbanTwinCommandCenter() {
   const [activeTab, setActiveTab] = useState<'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios'>('inspector');
 
   // GIS Selection & Entities
-  const [selectedZone, setSelectedZone] = useState<Zone | null>(GURUGRAM_SECTORS[0]); // Default to DLF Cyber City
+  const [selectedZone, setSelectedZone] = useState<Zone | null>(GURUGRAM_SECTORS[0]); // Default DLF Cyber City
   const [mapCenter, setMapCenter] = useState<[number, number]>(activeCity.center);
   const [mapZoom, setMapZoom] = useState<number>(activeCity.defaultZoom);
 
@@ -50,7 +52,7 @@ export default function UrbanTwinCommandCenter() {
   const [activeIncident, setActiveIncident] = useState<EmergencyIncident | null>(null);
   const [savedScenarios, setSavedScenarios] = useState<ScenarioItem[]>([]);
 
-  // Map Click Interactive Mode
+  // Map Click Mode
   const [mapClickMode, setMapClickMode] = useState<'inspect' | 'simulation_drop' | 'incident_drop'>('inspect');
   const [droppedCoords, setDroppedCoords] = useState<[number, number] | null>(null);
 
@@ -60,6 +62,7 @@ export default function UrbanTwinCommandCenter() {
   // Modals
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isTourModalOpen, setIsTourModalOpen] = useState(false);
 
   // Live Telemetry Stream
   const [telemetry, setTelemetry] = useState<RealTimeCityTelemetry>({
@@ -109,7 +112,6 @@ export default function UrbanTwinCommandCenter() {
     },
   });
 
-  // Fetch live environmental telemetry on mount & interval
   useEffect(() => {
     async function loadTelemetry() {
       try {
@@ -123,11 +125,10 @@ export default function UrbanTwinCommandCenter() {
       }
     }
     loadTelemetry();
-    const interval = setInterval(loadTelemetry, 120000); // Poll every 2 min
+    const interval = setInterval(loadTelemetry, 120000);
     return () => clearInterval(interval);
   }, [activeCity.id]);
 
-  // Handle sector selection on map
   const handleSelectZone = (zone: Zone | null) => {
     setSelectedZone(zone);
     if (zone) {
@@ -137,7 +138,6 @@ export default function UrbanTwinCommandCenter() {
     }
   };
 
-  // Handle map click in special drop modes
   const handleMapClickCoord = (coord: [number, number]) => {
     if (mapClickMode === 'simulation_drop') {
       setDroppedCoords(coord);
@@ -148,7 +148,6 @@ export default function UrbanTwinCommandCenter() {
       setMapClickMode('inspect');
       setActiveTab('emergency');
     } else {
-      // Find closest sector if clicking open space
       let closest = GURUGRAM_SECTORS[0];
       let minD = Infinity;
       GURUGRAM_SECTORS.forEach((s) => {
@@ -164,19 +163,16 @@ export default function UrbanTwinCommandCenter() {
     }
   };
 
-  // Ask AI handler
   const handleAskAI = (promptText: string) => {
     setActiveAIPrompt(promptText);
     setActiveTab('ai_advisor');
   };
 
-  // Start simulation in specific zone
   const handleStartSimulationInZone = (zone: Zone) => {
     setDroppedCoords(zone.center);
     setActiveTab('simulator');
   };
 
-  // Save scenario
   const handleSaveScenario = (simResult: SimulationResult) => {
     const newScenario: ScenarioItem = {
       id: `scen-${Date.now()}`,
@@ -202,9 +198,50 @@ export default function UrbanTwinCommandCenter() {
     setActiveTab('scenarios');
   };
 
+  // Quick Demo Triggers
+  const handleTriggerQuickDemo = (demoType: 'nh48_closure' | 'fire_sec65') => {
+    if (demoType === 'nh48_closure') {
+      const result = runWhatIfSimulation('road_closure', {
+        roadId: 'road-nh48-delhi-jaipur-expy',
+        roadName: 'NH-48 (Delhi-Jaipur Expressway)',
+        closureDurationHours: 2,
+      });
+      setActiveSimulation(result);
+      setMapCenter([28.4680, 77.0600]);
+      setMapZoom(12.8);
+      setActiveTab('simulator');
+    } else if (demoType === 'fire_sec65') {
+      const result = runWhatIfSimulation('new_fire_station', {
+        proposedLocation: [28.4110, 77.0650],
+        name: 'Sector 65 Southern Peripheral Fire Station',
+        fireEngines: 4,
+        coverageRadiusKm: 5.5,
+      });
+      setActiveSimulation(result);
+      setMapCenter([28.4110, 77.0650]);
+      setMapZoom(13.2);
+      setActiveTab('simulator');
+    }
+  };
+
+  // Guided Tour Step Action Handler
+  const handleTourStepAction = (step: number) => {
+    if (step === 1) {
+      handleSelectZone(GURUGRAM_SECTORS[0]);
+    } else if (step === 2) {
+      setActiveTab('inspector');
+    } else if (step === 3) {
+      handleTriggerQuickDemo('nh48_closure');
+    } else if (step === 4) {
+      setActiveTab('emergency');
+    } else if (step === 5) {
+      handleAskAI('Where should we consider adding a new fire station in Gurugram?');
+    }
+  };
+
   return (
     <div className={`h-screen w-screen flex flex-col ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'} overflow-hidden`}>
-      {/* 1. TOP COMMAND HEADER */}
+      {/* 1. HEADER */}
       <Header
         activeCity={activeCity}
         onSelectCity={(city) => {
@@ -218,16 +255,18 @@ export default function UrbanTwinCommandCenter() {
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         onOpenDataModal={() => setIsDataModalOpen(true)}
         onOpenReportModal={() => setIsReportModalOpen(true)}
+        onOpenTourModal={() => setIsTourModalOpen(true)}
         activeTab={activeTab}
         onSelectTab={setActiveTab}
+        onTriggerQuickDemo={handleTriggerQuickDemo}
       />
 
-      {/* 2. REAL-TIME ENVIRONMENTAL & TELEMETRY TICKER */}
+      {/* 2. REAL-TIME ENVIRONMENTAL TELEMETRY */}
       <RealTimeTelemetry telemetry={telemetry} />
 
-      {/* 3. MAIN COMMAND CENTER CANVAS */}
+      {/* 3. MAIN COMMAND CANVAS */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* LEFT / CENTER: GIS DIGITAL TWIN MAP CANVAS */}
+        {/* LEFT / CENTER: GIS DIGITAL TWIN MAP */}
         <div className="flex-1 h-full relative">
           <DigitalTwinMap
             center={mapCenter}
@@ -251,7 +290,7 @@ export default function UrbanTwinCommandCenter() {
           />
         </div>
 
-        {/* RIGHT: INTERACTIVE CONTROL & ANALYTICS DRAWER */}
+        {/* RIGHT: ANALYTICS & DECISION STUDIO DRAWER */}
         <div className="w-[430px] lg:w-[480px] h-full bg-slate-950/95 border-l border-slate-800 flex flex-col z-30 shadow-2xl backdrop-blur-xl">
           {activeTab === 'inspector' && (
             <ZoneInspector
@@ -323,6 +362,12 @@ export default function UrbanTwinCommandCenter() {
       </div>
 
       {/* 4. MODALS */}
+      <GuidedTourModal
+        isOpen={isTourModalOpen}
+        onClose={() => setIsTourModalOpen(false)}
+        onSelectStepAction={handleTourStepAction}
+      />
+
       <DataTransparencyModal
         isOpen={isDataModalOpen}
         onClose={() => setIsDataModalOpen(false)}

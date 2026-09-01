@@ -26,7 +26,11 @@ import {
   Flame,
   ArrowRight,
   Save,
-  RotateCcw
+  RotateCcw,
+  Zap,
+  CheckCircle2,
+  TrendingDown,
+  TrendingUp
 } from 'lucide-react';
 
 interface WhatIfSimulatorProps {
@@ -72,7 +76,6 @@ export default function WhatIfSimulator({
 
   const [transitCapacity, setTransitCapacity] = useState<number>(45000);
 
-  // Determine current active coordinate
   const currentCoord: [number, number] = droppedCoords || (selectedZone ? selectedZone.center : [28.4312, 77.0600]);
 
   const handleRunSimulation = () => {
@@ -121,7 +124,7 @@ export default function WhatIfSimulator({
       const result = runWhatIfSimulation(simType, params);
       onSimulationComplete(result);
       setIsSimulating(false);
-    }, 450);
+    }, 400);
   };
 
   return (
@@ -131,20 +134,20 @@ export default function WhatIfSimulator({
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Sliders className="w-4 h-4 text-cyan-400" />
-            <h3 className="font-bold text-sm text-slate-100">What-If Decision Simulator</h3>
+            <h3 className="font-extrabold text-sm text-slate-100">What-If Decision Simulator</h3>
           </div>
           {activeSimulation && (
             <button
               onClick={onClearSimulation}
-              className="text-slate-400 hover:text-white flex items-center gap-1 text-[11px] bg-slate-800 px-2 py-1 rounded"
+              className="text-slate-400 hover:text-white flex items-center gap-1 text-[11px] bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded-lg transition"
             >
               <RotateCcw className="w-3 h-3" /> Reset
             </button>
           )}
         </div>
 
-        {/* 1. SIMULATION TYPE SELECTOR PILLS */}
-        <div className="grid grid-cols-3 gap-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+        {/* 1. SIMULATION TYPE SELECTOR */}
+        <div className="grid grid-cols-3 gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800">
           {[
             { id: 'new_fire_station', label: '🚒 Fire Station', type: 'new_fire_station' },
             { id: 'new_hospital', label: '🏥 Hospital', type: 'new_hospital' },
@@ -155,9 +158,9 @@ export default function WhatIfSimulator({
             <button
               key={item.id}
               onClick={() => setSimType(item.type as SimulationType)}
-              className={`p-2 rounded-lg text-center font-medium transition text-[11px] ${
+              className={`p-2 rounded-xl text-center font-bold transition text-[11px] ${
                 simType === item.type
-                  ? 'bg-cyan-600 text-white font-bold shadow-md shadow-cyan-600/30'
+                  ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
             >
@@ -167,10 +170,10 @@ export default function WhatIfSimulator({
         </div>
 
         {/* 2. PARAMETERS CONTROLS */}
-        <div className="bg-slate-800/40 p-3.5 rounded-xl border border-slate-700/60 space-y-3">
-          <div className="flex items-center justify-between text-[11px] text-slate-300 font-semibold border-b border-slate-700/50 pb-2">
-            <span>Scenario Parameters</span>
-            <span className="text-cyan-400 font-mono text-[10px]">Grounded GIS Engine</span>
+        <div className="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 space-y-3.5 shadow-xl">
+          <div className="flex items-center justify-between text-[11px] text-slate-300 font-bold border-b border-slate-800 pb-2">
+            <span>Simulation Parameters</span>
+            <span className="text-cyan-400 font-mono text-[10px]">PostGIS Engine</span>
           </div>
 
           {/* ROAD CLOSURE INPUTS */}
@@ -183,7 +186,7 @@ export default function WhatIfSimulator({
                 <select
                   value={selectedRoadId}
                   onChange={(e) => setSelectedRoadId(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs focus:ring-1 focus:ring-cyan-500"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-200 text-xs focus:ring-1 focus:ring-cyan-500 font-medium"
                 >
                   {roads.map((r) => (
                     <option key={r.id} value={r.id}>
@@ -194,8 +197,8 @@ export default function WhatIfSimulator({
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
-                  Closure Duration: <span className="text-cyan-400 font-bold">{closureDuration} Hours</span>
+                <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1.5">
+                  Closure Duration: <span className="text-red-400 font-black">{closureDuration} Hours</span>
                 </label>
                 <div className="grid grid-cols-4 gap-1.5">
                   {[0.5, 1, 2, 6].map((dur) => (
@@ -203,10 +206,10 @@ export default function WhatIfSimulator({
                       key={dur}
                       type="button"
                       onClick={() => setClosureDuration(dur)}
-                      className={`py-1.5 rounded text-xs font-semibold ${
+                      className={`py-2 rounded-xl text-xs font-bold transition ${
                         closureDuration === dur
-                          ? 'bg-red-600 text-white'
-                          : 'bg-slate-900 text-slate-400 border border-slate-700'
+                          ? 'bg-red-600 text-white shadow-md shadow-red-600/30'
+                          : 'bg-slate-950 text-slate-400 border border-slate-800 hover:bg-slate-800'
                       }`}
                     >
                       {dur === 0.5 ? '30 Min' : `${dur} Hrs`}
@@ -222,13 +225,13 @@ export default function WhatIfSimulator({
             <div className="space-y-3">
               <div>
                 <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">
-                  Facility Name
+                  Proposed Facility Name
                 </label>
                 <input
                   type="text"
                   value={hospitalName}
                   onChange={(e) => setHospitalName(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-slate-200 text-xs font-medium"
                 />
               </div>
 
@@ -245,7 +248,7 @@ export default function WhatIfSimulator({
                   onChange={(e) => setHospitalBeds(Number(e.target.value))}
                   className="w-full accent-red-500"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                <div className="flex justify-between text-[10px] text-slate-500 mt-0.5 font-mono">
                   <span>150 (CHC)</span>
                   <span>500 (Super-Spec)</span>
                   <span>1200 (Medicity Tier)</span>
@@ -265,7 +268,7 @@ export default function WhatIfSimulator({
                   type="text"
                   value={fireStationName}
                   onChange={(e) => setFireStationName(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-slate-200 text-xs"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2 text-slate-200 text-xs font-medium"
                 />
               </div>
 
@@ -282,7 +285,7 @@ export default function WhatIfSimulator({
                   onChange={(e) => setFireEngines(Number(e.target.value))}
                   className="w-full accent-orange-500"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400 mt-0.5">
+                <div className="flex justify-between text-[10px] text-slate-500 mt-0.5 font-mono">
                   <span>2 (Sub-Station)</span>
                   <span>4 (Standard)</span>
                   <span>8 (Division HQ)</span>
@@ -291,7 +294,7 @@ export default function WhatIfSimulator({
             </div>
           )}
 
-          {/* NEW PARK INPUTS */}
+          {/* NEW PARK */}
           {simType === 'new_park' && (
             <div className="space-y-3">
               <div>
@@ -346,18 +349,18 @@ export default function WhatIfSimulator({
             </div>
           )}
 
-          {/* LOCATION PIN DROPPER */}
+          {/* PIN DROPPER TRIGGER */}
           {simType !== 'road_closure' && (
-            <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between">
+            <div className="pt-2.5 border-t border-slate-800 flex items-center justify-between">
               <span className="text-[11px] text-slate-400">
-                Coords: <span className="font-mono text-cyan-300">{currentCoord[0].toFixed(4)}, {currentCoord[1].toFixed(4)}</span>
+                Coords: <span className="font-mono text-cyan-300 font-bold">{currentCoord[0].toFixed(4)}, {currentCoord[1].toFixed(4)}</span>
               </span>
               <button
                 type="button"
                 onClick={() => onEnableMapDrop('simulation_drop')}
-                className="px-2.5 py-1 rounded bg-slate-700 hover:bg-slate-600 text-cyan-300 flex items-center gap-1 font-semibold text-[10px] transition"
+                className="px-3 py-1.5 rounded-xl bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800 flex items-center gap-1 font-bold text-[10px] transition shadow-md"
               >
-                <MapPin className="w-3 h-3 text-cyan-400" /> Click Map to Place
+                <MapPin className="w-3.5 h-3.5 text-cyan-400" /> Click Map to Position
               </button>
             </div>
           )}
@@ -367,64 +370,67 @@ export default function WhatIfSimulator({
         <button
           onClick={handleRunSimulation}
           disabled={isSimulating}
-          className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-xl shadow-cyan-500/20 transition disabled:opacity-50"
+          className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-extrabold py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-xl shadow-cyan-500/20 transition disabled:opacity-50"
         >
           {isSimulating ? (
             <>
-              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>Simulating GIS Network Dynamics...</span>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <span>Traversing PostGIS Network Graph...</span>
             </>
           ) : (
             <>
               <Play className="w-4 h-4 fill-current" />
-              <span>Execute What-If Simulation</span>
+              <span>Execute What-If Decision Simulation</span>
             </>
           )}
         </button>
 
         {/* 3. SIMULATION RESULTS CARD */}
         {activeSimulation && (
-          <div className="bg-slate-900/90 border border-cyan-500/40 rounded-xl p-3.5 space-y-3 shadow-2xl animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-cyan-500/50 rounded-2xl p-4 space-y-3.5 shadow-2xl animate-in fade-in duration-200">
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-              <span className="font-bold text-cyan-400 text-xs flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-cyan-400" /> Simulation Results
+              <span className="font-extrabold text-cyan-400 text-xs flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-cyan-400" /> Spatial Simulation Results
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-800">
+              <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-cyan-950 text-cyan-300 border border-cyan-700">
                 Impact Score: {activeSimulation.impactScore}/100
               </span>
             </div>
 
             {/* Key KPI Deltas */}
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-slate-800/70 p-2 rounded-lg border border-slate-700">
-                <span className="text-slate-400 text-[10px] block">Population Impacted</span>
-                <span className="font-bold text-slate-100 text-sm">
+              <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span className="text-slate-400 text-[10px] block font-semibold">Population Served/Impacted</span>
+                <span className="font-extrabold text-slate-100 text-sm">
                   {activeSimulation.affectedPopulation.toLocaleString('en-IN')}
                 </span>
               </div>
 
               {activeSimulation.deltaResponseTimeMin !== 0 && (
-                <div className="bg-slate-800/70 p-2 rounded-lg border border-slate-700">
-                  <span className="text-slate-400 text-[10px] block">Response Time Delta</span>
-                  <span className={`font-bold text-sm ${activeSimulation.deltaResponseTimeMin < 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                  <span className="text-slate-400 text-[10px] block font-semibold">Response Time Delta</span>
+                  <span className={`font-extrabold text-sm flex items-center gap-1 ${
+                    activeSimulation.deltaResponseTimeMin < 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}>
+                    {activeSimulation.deltaResponseTimeMin < 0 ? <TrendingDown className="w-3.5 h-3.5" /> : <TrendingUp className="w-3.5 h-3.5" />}
                     {activeSimulation.deltaResponseTimeMin > 0 ? '+' : ''}{activeSimulation.deltaResponseTimeMin} min
                   </span>
                 </div>
               )}
 
               {activeSimulation.trafficDelayIndexDelta !== 0 && (
-                <div className="bg-slate-800/70 p-2 rounded-lg border border-slate-700">
-                  <span className="text-slate-400 text-[10px] block">Traffic Delay Delta</span>
-                  <span className={`font-bold text-sm ${activeSimulation.trafficDelayIndexDelta > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                  <span className="text-slate-400 text-[10px] block font-semibold">Traffic Delay Surge</span>
+                  <span className={`font-extrabold text-sm ${activeSimulation.trafficDelayIndexDelta > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
                     {activeSimulation.trafficDelayIndexDelta > 0 ? '+' : ''}{activeSimulation.trafficDelayIndexDelta}%
                   </span>
                 </div>
               )}
 
               {activeSimulation.uhiMitigationC > 0 && (
-                <div className="bg-slate-800/70 p-2 rounded-lg border border-slate-700">
-                  <span className="text-slate-400 text-[10px] block">UHI Cooling Effect</span>
-                  <span className="font-bold text-emerald-400 text-sm">
+                <div className="bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                  <span className="text-slate-400 text-[10px] block font-semibold">UHI Surface Cooling</span>
+                  <span className="font-extrabold text-emerald-400 text-sm">
                     -{activeSimulation.uhiMitigationC}°C
                   </span>
                 </div>
@@ -432,10 +438,10 @@ export default function WhatIfSimulator({
             </div>
 
             {/* Key Findings list */}
-            <div className="space-y-1 text-[11px]">
+            <div className="space-y-1.5 text-[11px]">
               {activeSimulation.keyFindings.map((finding, idx) => (
                 <div key={idx} className="flex items-start gap-1.5 text-slate-300">
-                  <span className="text-cyan-400 font-bold">•</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0 mt-0.5" />
                   <span>{finding}</span>
                 </div>
               ))}
@@ -443,30 +449,30 @@ export default function WhatIfSimulator({
 
             {/* AI Summary note */}
             {activeSimulation.aiExecutiveSummary && (
-              <div className="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-800/40 text-[11px] text-cyan-200">
-                <span className="font-bold block text-cyan-400 text-[10px] uppercase mb-0.5">
+              <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-800/50 text-[11px] text-cyan-200">
+                <span className="font-bold block text-cyan-400 text-[10px] uppercase mb-1">
                   AI Model Interpretation:
                 </span>
                 {activeSimulation.aiExecutiveSummary}
               </div>
             )}
 
-            {/* Actions for simulation */}
+            {/* Actions */}
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
                 onClick={() => onSaveScenario(activeSimulation)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition"
               >
                 <Save className="w-3.5 h-3.5 text-cyan-400" /> Save Scenario
               </button>
 
               <button
                 onClick={() =>
-                  onAskAI(`Explain the urban planning consequences and recommendations for ${activeSimulation.scenarioName}`)
+                  onAskAI(`Explain the urban planning consequences, infrastructure tradeoffs, and policy recommendations for ${activeSimulation.scenarioName}`)
                 }
-                className="bg-cyan-900/60 hover:bg-cyan-800/60 text-cyan-300 border border-cyan-600/40 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                className="bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-700 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-md"
               >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Ask AI Advisor
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> AI Debriefing
               </button>
             </div>
           </div>
