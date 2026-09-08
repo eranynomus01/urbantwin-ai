@@ -25,7 +25,8 @@ import {
   FloodRiskZone, 
   HeatRiskZone, 
   SimulationResult,
-  EmergencyIncident 
+  EmergencyIncident,
+  UserLiveLocation
 } from '@/types';
 
 // Fix default Leaflet icon paths
@@ -62,15 +63,16 @@ const createCustomIcon = (bgColor: string, symbol: string, size: number = 32, la
           <div style="
             position: absolute;
             top: ${size + 2}px;
-            background: rgba(15, 23, 42, 0.9);
-            color: #e2e8f0;
+            background: rgba(15, 23, 42, 0.95);
+            color: #38bdf8;
             padding: 1px 6px;
             border-radius: 4px;
             font-size: 9px;
-            font-weight: bold;
+            font-weight: 800;
             white-space: nowrap;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(56, 189, 248, 0.4);
             pointer-events: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
           ">
             ${label}
           </div>
@@ -83,13 +85,13 @@ const createCustomIcon = (bgColor: string, symbol: string, size: number = 32, la
   });
 };
 
+const userGpsIcon = createCustomIcon('#0284c7', '📍', 36, 'YOU ARE HERE');
 const hospitalIcon = createCustomIcon('#ef4444', '🏥', 32);
 const fireIcon = createCustomIcon('#f97316', '🚒', 32);
 const policeIcon = createCustomIcon('#3b82f6', '👮', 28);
 const parkIcon = createCustomIcon('#10b981', '🌳', 28);
 const metroIcon = createCustomIcon('#8b5cf6', '🚇', 28);
 const incidentIcon = createCustomIcon('#dc2626', '🚨', 38, 'ACTIVE INCIDENT');
-const proposedIcon = createCustomIcon('#06b6d4', '✨', 34, 'PROPOSED');
 
 interface MapInnerProps {
   center: [number, number];
@@ -97,6 +99,7 @@ interface MapInnerProps {
   isDarkMode: boolean;
   selectedZone: Zone | null;
   onSelectZone: (zone: Zone | null) => void;
+  userLiveLocation: UserLiveLocation | null;
   layers: {
     roads: boolean;
     hospitals: boolean;
@@ -147,6 +150,7 @@ export default function MapInner({
   isDarkMode,
   selectedZone,
   onSelectZone,
+  userLiveLocation,
   layers,
   sectors,
   hospitals,
@@ -183,7 +187,54 @@ export default function MapInner({
 
         <TileLayer attribution={attribution} url={tileUrl} />
 
-        {/* 1. SECTOR BOUNDARIES & POPULATION CHOROPLETH */}
+        {/* 0. USER LIVE GPS LOCATION PIN & ACCURACY CIRCLE */}
+        {userLiveLocation && (
+          <>
+            <Circle
+              center={[userLiveLocation.lat, userLiveLocation.lng]}
+              radius={userLiveLocation.accuracyM || 300}
+              pathOptions={{
+                color: '#0284c7',
+                fillColor: '#38bdf8',
+                fillOpacity: 0.18,
+                weight: 1.5,
+                dashArray: '3, 6'
+              }}
+            />
+            <Marker
+              position={[userLiveLocation.lat, userLiveLocation.lng]}
+              icon={userGpsIcon}
+            >
+              <Popup>
+                <div className="text-xs p-1 text-slate-900">
+                  <div className="font-extrabold text-sm text-sky-700 flex items-center gap-1">
+                    <span>📍 Your Live Location</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 mt-1">
+                    GPS: <b>{userLiveLocation.lat.toFixed(4)}°N, {userLiveLocation.lng.toFixed(4)}°E</b>
+                  </div>
+                  {userLiveLocation.nearestSectorName && (
+                    <div className="text-[11px] text-slate-700 mt-0.5">
+                      Nearest Sector: <b>{userLiveLocation.nearestSectorName}</b>
+                    </div>
+                  )}
+                  {userLiveLocation.nearestHospitalDistKm !== undefined && (
+                    <div className="text-[11px] text-red-600 font-semibold mt-1">
+                      🏥 Nearest Hospital: {userLiveLocation.nearestHospitalName} ({userLiveLocation.nearestHospitalDistKm.toFixed(1)} km)
+                    </div>
+                  )}
+                  {userLiveLocation.nearestFireDistKm !== undefined && (
+                    <div className="text-[11px] text-orange-600 font-semibold">
+                      🚒 Nearest Fire Station: {userLiveLocation.nearestFireStationName} ({userLiveLocation.nearestFireDistKm.toFixed(1)} km)
+                    </div>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          </>
+        )}
+
+        {/* 1. SECTOR BOUNDARIES */}
         {sectors.map((zone) => {
           const isSelected = selectedZone?.id === zone.id;
           let fillColor = '#3b82f6';

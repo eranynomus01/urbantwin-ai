@@ -197,9 +197,23 @@ export interface AirQualityTelemetry {
   isRealTime: boolean;
 }
 
+export interface UserLiveLocation {
+  lat: number;
+  lng: number;
+  accuracyM?: number;
+  timestamp: string;
+  nearestSectorName?: string;
+  nearestHospitalName?: string;
+  nearestHospitalDistKm?: number;
+  nearestFireStationName?: string;
+  nearestFireDistKm?: number;
+}
+
 export interface RealTimeCityTelemetry {
   cityId: string;
   cityName: string;
+  isUserLiveLocation?: boolean;
+  userCoords?: [number, number];
   weather: WeatherTelemetry;
   airQuality: AirQualityTelemetry;
   trafficSummary: {

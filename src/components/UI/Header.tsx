@@ -3,23 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { City, UserRole } from '@/types';
 import { SUPPORTED_CITIES } from '@/data/cities';
-import { 
-  Building2, 
-  Layers, 
-  Database, 
-  FileText, 
-  Moon, 
-  Sun, 
-  Shield, 
-  UserCheck, 
-  ChevronDown, 
-  Activity,
-  Globe,
-  Compass,
-  Zap,
-  Clock,
-  Sparkles
-} from 'lucide-react';
+import { Map, BarChart2, Shield, Sparkles, LayoutGrid, Database, FileBarChart, HelpCircle, ChevronDown, Sun, Moon } from 'lucide-react';
 
 interface HeaderProps {
   activeCity: City;
@@ -31,10 +15,18 @@ interface HeaderProps {
   onOpenDataModal: () => void;
   onOpenReportModal: () => void;
   onOpenTourModal: () => void;
-  activeTab: 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios';
-  onSelectTab: (tab: 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios') => void;
+  activeTab: string;
+  onSelectTab: (tab: any) => void;
   onTriggerQuickDemo: (demoType: 'nh48_closure' | 'fire_sec65') => void;
 }
+
+const TABS = [
+  { id: 'inspector', label: 'Sector Map', icon: Map },
+  { id: 'simulator', label: 'What-If', icon: BarChart2 },
+  { id: 'emergency', label: 'Emergency', icon: Shield },
+  { id: 'ai_advisor', label: 'AI Advisor', icon: Sparkles },
+  { id: 'scenarios', label: 'Compare', icon: LayoutGrid },
+];
 
 export default function Header({
   activeCity,
@@ -50,173 +42,116 @@ export default function Header({
   onSelectTab,
   onTriggerQuickDemo,
 }: HeaderProps) {
-  const [currentTime, setCurrentTime] = useState('');
+  const [time, setTime] = useState('');
+  const [cityOpen, setCityOpen] = useState(false);
 
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(
-        now.toLocaleTimeString('en-IN', {
-          timeZone: 'Asia/Kolkata',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false
-        }) + ' IST'
-      );
-    };
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
-    return () => clearInterval(timer);
+    const tick = () => setTime(
+      new Date().toLocaleTimeString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }) + ' IST'
+    );
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
   }, []);
 
   return (
-    <header className="bg-slate-950/95 border-b border-slate-800 px-4 py-2 text-slate-100 flex flex-wrap items-center justify-between gap-3 select-none">
-      {/* Brand & City Selector */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/20 font-black text-base">
-            UT
+    <header className="w-full shrink-0 bg-[#080d1a]/95 border-b border-white/[0.06] backdrop-blur-xl z-50 select-none">
+      {/* Top Row */}
+      <div className="flex items-center justify-between h-14 px-5 gap-4">
+        {/* Brand */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <span className="text-white font-black text-sm tracking-tight">UT</span>
           </div>
-          <div>
-            <div className="font-extrabold text-sm tracking-tight text-white flex items-center gap-2">
-              <span>UrbanTwin AI</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 border border-cyan-700/60 text-cyan-400 font-mono">
-                v2.0
-              </span>
-              <span className="hidden xl:inline-flex items-center gap-1 text-[10px] text-emerald-400 font-medium px-2 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                Real GIS Active
-              </span>
-            </div>
-            <p className="text-[10px] text-slate-400 font-medium hidden sm:block">
-              Real-Time Digital Twin & Decision Support System
-            </p>
+          <div className="hidden sm:block">
+            <div className="font-bold text-sm text-white leading-tight tracking-tight">UrbanTwin AI</div>
+            <div className="text-[10px] text-slate-400 font-medium">Gurugram Digital Twin Platform</div>
           </div>
         </div>
 
-        {/* 1. CITY SELECTOR */}
-        <div className="relative">
-          <select
-            value={activeCity.id}
-            onChange={(e) => {
-              const selected = SUPPORTED_CITIES.find((c) => c.id === e.target.value);
-              if (selected && selected.isActive) {
-                onSelectCity(selected);
-              }
-            }}
-            className="bg-slate-900 border border-slate-700 hover:border-cyan-500/60 rounded-lg py-1.5 pl-3 pr-8 text-xs font-semibold text-slate-100 focus:outline-none focus:ring-1 focus:ring-cyan-500 appearance-none cursor-pointer transition shadow-inner"
-          >
-            {SUPPORTED_CITIES.map((city) => (
-              <option
-                key={city.id}
-                value={city.id}
-                disabled={!city.isActive}
-                className={!city.isActive ? 'text-slate-500 bg-slate-950' : 'text-slate-100 bg-slate-900'}
-              >
-                {city.name}, {city.state} {city.isActive ? '• Active' : '— (Pending Data)'}
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-        </div>
-      </div>
-
-      {/* Main Studio Navigation Tabs */}
-      <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs">
-        {[
-          { id: 'inspector', label: 'Sector Inspector', icon: Building2 },
-          { id: 'simulator', label: 'What-If Studio', icon: Layers },
-          { id: 'emergency', label: 'Emergency Router', icon: Shield },
-          { id: 'ai_advisor', label: 'AI Planner', icon: Activity },
-          { id: 'scenarios', label: 'Scenario Deck', icon: Globe },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
+        {/* Center Nav Tabs (Desktop) */}
+        <nav className="hidden md:flex items-end h-full gap-0.5 overflow-x-auto no-scrollbar">
+          {TABS.map(({ id, label, icon: Icon }) => (
             <button
-              key={tab.id}
-              onClick={() => onSelectTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition text-xs ${
-                isActive
-                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
+              key={id}
+              onClick={() => onSelectTab(id)}
+              className={`nav-tab flex items-center gap-1.5 ${activeTab === id ? 'active' : ''}`}
             >
               <Icon className="w-3.5 h-3.5" />
-              <span>{tab.label}</span>
+              {label}
             </button>
-          );
-        })}
-      </div>
+          ))}
+        </nav>
 
-      {/* Actions, Quick Demo, Tour & Tools */}
-      <div className="flex items-center gap-2">
-        {/* Quick Demo Datalinks */}
-        <div className="hidden lg:flex items-center gap-1.5 border-r border-slate-800 pr-2">
-          <button
-            onClick={() => onTriggerQuickDemo('nh48_closure')}
-            className="px-2.5 py-1 rounded-lg bg-red-950/80 hover:bg-red-900/80 text-red-300 border border-red-800/80 text-[10px] font-bold flex items-center gap-1 transition shadow-sm"
-            title="Simulate 2-Hour NH-48 Highway Closure with Live OSRM Detour"
-          >
-            <Zap className="w-3 h-3 text-red-400" />
-            <span>NH-48 Detour Demo</span>
+        {/* Right Controls */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Live Time */}
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 live-dot"></span>
+            <span className="text-xs text-slate-300 font-mono font-medium">{time}</span>
+          </div>
+
+          {/* City Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setCityOpen(!cityOpen)}
+              className="btn-ghost flex items-center gap-1.5 px-3 py-1.5 text-xs"
+            >
+              <span className="text-slate-200 font-semibold">{activeCity.name}</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
+            {cityOpen && (
+              <div className="absolute right-0 top-full mt-2 w-56 panel-card rounded-xl shadow-2xl overflow-hidden z-[100]">
+                {SUPPORTED_CITIES.map((city) => (
+                  <button
+                    key={city.id}
+                    onClick={() => { onSelectCity(city); setCityOpen(false); }}
+                    className={`w-full text-left px-4 py-3 text-xs transition hover:bg-white/[0.06] ${
+                      city.id === activeCity.id ? 'text-sky-400 font-bold' : 'text-slate-300 font-medium'
+                    } ${!city.isActive ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    disabled={!city.isActive}
+                  >
+                    <div className="font-semibold">{city.name}</div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">{city.state}, {city.country} {!city.isActive && '· Coming Soon'}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Quick Demo */}
+          <div className="hidden lg:flex items-center gap-1.5">
+            <button
+              onClick={() => onTriggerQuickDemo('nh48_closure')}
+              className="px-3 py-1.5 text-[11px] font-bold text-amber-400 bg-amber-400/10 border border-amber-400/20 rounded-lg hover:bg-amber-400/15 transition"
+            >
+              ⛔ NH-48 Demo
+            </button>
+            <button
+              onClick={() => onTriggerQuickDemo('fire_sec65')}
+              className="px-3 py-1.5 text-[11px] font-bold text-orange-400 bg-orange-400/10 border border-orange-400/20 rounded-lg hover:bg-orange-400/15 transition"
+            >
+              🚒 Fire Stn Demo
+            </button>
+          </div>
+
+          {/* Actions */}
+          <button onClick={onOpenTourModal} title="Guided Tour" className="btn-ghost p-2 rounded-lg">
+            <HelpCircle className="w-4 h-4" />
           </button>
-
-          <button
-            onClick={() => onTriggerQuickDemo('fire_sec65')}
-            className="px-2.5 py-1 rounded-lg bg-orange-950/80 hover:bg-orange-900/80 text-orange-300 border border-orange-800/80 text-[10px] font-bold flex items-center gap-1 transition shadow-sm"
-            title="Simulate New Sector 65 Fire Station Isochrone Expansion"
-          >
-            <Sparkles className="w-3 h-3 text-orange-400" />
-            <span>New Fire Station Demo</span>
+          <button onClick={onOpenReportModal} title="Export PDF Report" className="btn-ghost p-2 rounded-lg">
+            <FileBarChart className="w-4 h-4" />
+          </button>
+          <button onClick={onOpenDataModal} title="Data Sources" className="btn-ghost p-2 rounded-lg">
+            <Database className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Guided Tour Button */}
-        <button
-          onClick={onOpenTourModal}
-          className="bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-800/80 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-md shadow-cyan-950/40"
-          title="Interactive Platform Tour (60 seconds)"
-        >
-          <Compass className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden sm:inline">Guided Tour</span>
-        </button>
-
-        {/* Data Transparency Modal Trigger */}
-        <button
-          onClick={onOpenDataModal}
-          className="bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-400 border border-slate-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
-          title="Data Sources, Quality Audit (94.5%) & Licenses"
-        >
-          <Database className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden md:inline">Sources (94.5%)</span>
-        </button>
-
-        {/* Report Generator Modal Trigger */}
-        <button
-          onClick={onOpenReportModal}
-          className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-md shadow-cyan-600/20 transition"
-          title="Generate Executive Decision Report"
-        >
-          <FileText className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">Export PDF</span>
-        </button>
-
-        {/* Live IST Clock */}
-        <div className="hidden xl:flex items-center gap-1 text-[11px] text-slate-400 bg-slate-900 border border-slate-800 px-2 py-1 rounded-md font-mono">
-          <Clock className="w-3 h-3 text-cyan-400" />
-          <span>{currentTime || '18:45 IST'}</span>
-        </div>
-
-        {/* Theme toggle */}
-        <button
-          onClick={onToggleTheme}
-          className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition"
-          title={isDarkMode ? 'Switch to Light Studio' : 'Switch to Dark Command Center'}
-        >
-          {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-400" />}
-        </button>
       </div>
     </header>
   );

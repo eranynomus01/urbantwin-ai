@@ -13,16 +13,17 @@ import {
   FloodRiskZone, 
   HeatRiskZone, 
   SimulationResult,
-  EmergencyIncident 
+  EmergencyIncident,
+  UserLiveLocation
 } from '@/types';
-import { Layers, CloudRain, Flame, ShieldAlert, Navigation, MapPin } from 'lucide-react';
+import { Layers, Crosshair, Navigation, Check } from 'lucide-react';
 
 const DynamicMapInner = dynamic(() => import('./MapInner'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-slate-400 gap-3">
-      <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-      <p className="text-sm font-medium tracking-wide text-cyan-400">Loading Gurugram PostGIS Digital Twin Map...</p>
+    <div className="w-full h-full flex flex-col items-center justify-center bg-[#0a0f1e] text-slate-400 gap-3">
+      <div className="w-8 h-8 border-2 border-sky-400/30 border-t-sky-400 rounded-full animate-spin"></div>
+      <p className="text-xs font-medium tracking-wide text-slate-400">Loading Gurugram Spatial Canvas…</p>
     </div>
   ),
 });
@@ -33,6 +34,9 @@ interface DigitalTwinMapProps {
   isDarkMode: boolean;
   selectedZone: Zone | null;
   onSelectZone: (zone: Zone | null) => void;
+  userLiveLocation: UserLiveLocation | null;
+  onTriggerLocateMe: () => void;
+  isLocating?: boolean;
   sectors: Zone[];
   hospitals: Hospital[];
   fireStations: FireStation[];
@@ -71,219 +75,166 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
   const activeLayerCount = Object.values(layers).filter(Boolean).length;
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
-      {/* 1. TOP SECTOR TELEPORT QUICK BAR */}
-      <div className="absolute top-3 left-4 z-[900] flex items-center gap-1.5 overflow-x-auto max-w-[calc(100%-240px)] pb-1 no-scrollbar">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300 bg-slate-900/90 backdrop-blur-md px-2 py-1.5 rounded-lg border border-slate-700/80 shrink-0 shadow-lg flex items-center gap-1">
-          <Navigation className="w-3 h-3 text-cyan-400" /> Jump to:
-        </span>
-        {props.sectors.map((sec) => {
-          const isSelected = props.selectedZone?.id === sec.id;
-          return (
-            <button
-              key={sec.id}
-              onClick={() => props.onSelectZone(sec)}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition shrink-0 backdrop-blur-md border shadow-md flex items-center gap-1 ${
-                isSelected
-                  ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-bold shadow-cyan-500/20'
-                  : 'bg-slate-900/85 hover:bg-slate-800 text-slate-300 border-slate-700/80'
-              }`}
-            >
-              <span>{sec.sectorNumber || sec.name.split(' ')[0]}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <DynamicMapInner {...props} layers={layers} />
-
-      {/* Floating Layer Control Button */}
-      <div className="absolute top-3 right-4 z-[900] flex flex-col gap-2">
+    <div className="relative w-full h-full overflow-hidden select-none">
+      {/* 1. TOP FLOATING JUMP BAR */}
+      <div className="absolute top-4 left-4 z-[900] flex items-center gap-1.5 overflow-x-auto max-w-[calc(100%-140px)] pb-1 no-scrollbar">
+        {/* Locate Me */}
         <button
-          onClick={() => setIsLayerPanelOpen(!isLayerPanelOpen)}
-          className="bg-slate-900/95 hover:bg-slate-800 text-cyan-400 p-2.5 rounded-xl border border-cyan-500/40 shadow-xl backdrop-blur-md flex items-center gap-2 transition text-xs font-bold"
-          title="Digital Twin Layers"
+          onClick={props.onTriggerLocateMe}
+          disabled={props.isLocating}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shrink-0 shadow-lg backdrop-blur-xl border ${
+            props.userLiveLocation
+              ? 'bg-sky-500/20 text-sky-300 border-sky-400/40'
+              : 'bg-[#0f172a]/90 hover:bg-[#1e293b] text-slate-300 border-white/[0.08]'
+          }`}
         >
-          <Layers className="w-4 h-4 text-cyan-400" />
-          <span>Layers ({activeLayerCount})</span>
+          <Crosshair className={`w-3.5 h-3.5 text-sky-400 ${props.isLocating ? 'animate-spin' : ''}`} />
+          <span>{props.isLocating ? 'Locating…' : props.userLiveLocation ? 'My GPS' : 'Locate Me'}</span>
         </button>
 
-        {/* Quick layer quick-action buttons */}
-        <div className="flex flex-col gap-1.5">
-          <button
-            onClick={() => toggleLayer('floodZones')}
-            className={`p-2 rounded-lg border backdrop-blur-md flex items-center justify-between text-xs font-medium transition ${
-              layers.floodZones
-                ? 'bg-blue-600/90 text-white border-blue-400 shadow-blue-500/30 shadow-lg font-bold'
-                : 'bg-slate-900/85 text-slate-300 border-slate-700 hover:bg-slate-800'
-            }`}
-            title="Toggle Flood Risk Drainage Corridor"
-          >
-            <span className="flex items-center gap-1.5">
-              <CloudRain className="w-3.5 h-3.5 text-blue-400" />
-              Flood Basins
-            </span>
-          </button>
-
-          <button
-            onClick={() => toggleLayer('heatZones')}
-            className={`p-2 rounded-lg border backdrop-blur-md flex items-center justify-between text-xs font-medium transition ${
-              layers.heatZones
-                ? 'bg-orange-600/90 text-white border-orange-400 shadow-orange-500/30 shadow-lg font-bold'
-                : 'bg-slate-900/85 text-slate-300 border-slate-700 hover:bg-slate-800'
-            }`}
-            title="Toggle Urban Heat Island Hotspots"
-          >
-            <span className="flex items-center gap-1.5">
-              <Flame className="w-3.5 h-3.5 text-orange-400" />
-              Heat (UHI)
-            </span>
-          </button>
-
-          <button
-            onClick={() => toggleLayer('coverageIsochrones')}
-            className={`p-2 rounded-lg border backdrop-blur-md flex items-center justify-between text-xs font-medium transition ${
-              layers.coverageIsochrones
-                ? 'bg-red-600/90 text-white border-red-400 shadow-red-500/30 shadow-lg font-bold'
-                : 'bg-slate-900/85 text-slate-300 border-slate-700 hover:bg-slate-800'
-            }`}
-            title="Toggle Emergency Isochrone Buffers"
-          >
-            <span className="flex items-center gap-1.5">
-              <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
-              Isochrones
-            </span>
-          </button>
+        {/* Sector Quick Pills */}
+        <div className="flex items-center gap-1 bg-[#0f172a]/85 backdrop-blur-xl p-1 rounded-xl border border-white/[0.08] shadow-lg">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-0.5 flex items-center gap-1 shrink-0">
+            <Navigation className="w-3 h-3 text-sky-400" /> Jump
+          </span>
+          {props.sectors.slice(0, 7).map((sec) => {
+            const isSelected = props.selectedZone?.id === sec.id;
+            return (
+              <button
+                key={sec.id}
+                onClick={() => props.onSelectZone(sec)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition shrink-0 ${
+                  isSelected
+                    ? 'bg-sky-500 text-white font-bold shadow-md shadow-sky-500/25'
+                    : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                }`}
+              >
+                {sec.sectorNumber || sec.name.split(' ')[0]}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Expanded Multi-Layer Control Drawer */}
-      {isLayerPanelOpen && (
-        <div className="absolute top-16 right-4 z-[950] w-64 bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 rounded-xl p-3.5 shadow-2xl text-slate-200 text-xs animate-in fade-in slide-in-from-top-2 duration-200">
-          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
-            <span className="font-bold text-cyan-400 flex items-center gap-1.5">
-              <Layers className="w-4 h-4" /> Digital Twin Layers
-            </span>
-            <button
-              onClick={() => setIsLayerPanelOpen(false)}
-              className="text-slate-400 hover:text-white p-1"
-            >
-              ✕
-            </button>
-          </div>
+      {/* 2. LEAFLET MAP ENGINE */}
+      <DynamicMapInner {...props} layers={layers} />
 
-          <div className="space-y-3">
+      {/* 3. TOP-RIGHT LAYER SWITCHER */}
+      <div className="absolute top-4 right-4 z-[900]">
+        <button
+          onClick={() => setIsLayerPanelOpen(!isLayerPanelOpen)}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-lg backdrop-blur-xl border ${
+            isLayerPanelOpen
+              ? 'bg-sky-500 text-white border-sky-400'
+              : 'bg-[#0f172a]/90 hover:bg-[#1e293b] text-slate-200 border-white/[0.08]'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>Layers</span>
+          <span className="text-[10px] font-mono opacity-80">({activeLayerCount})</span>
+        </button>
+
+        {/* Layer Controls Dropdown Drawer */}
+        {isLayerPanelOpen && (
+          <div className="absolute top-10 right-0 w-64 bg-[#0f172a]/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl p-4 shadow-2xl text-xs space-y-3.5 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+              <span className="font-bold text-slate-200 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-sky-400" /> Digital Twin Layers
+              </span>
+              <button
+                onClick={() => setIsLayerPanelOpen(false)}
+                className="text-slate-400 hover:text-white text-xs px-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Infrastructure */}
             <div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
                 Infrastructure
               </div>
               <div className="space-y-1">
                 {[
-                  { key: 'roads', label: 'Arterial Road Corridors', color: '#f59e0b' },
+                  { key: 'roads', label: 'Arterial Roads & NH-48', color: '#f59e0b' },
                   { key: 'hospitals', label: 'Hospitals & Trauma', color: '#ef4444' },
                   { key: 'fireStations', label: 'Fire & Rescue Stations', color: '#f97316' },
                   { key: 'policeStations', label: 'Police Stations', color: '#3b82f6' },
                   { key: 'transit', label: 'Rapid Metro & Transit', color: '#8b5cf6' },
                   { key: 'parks', label: 'Parks & Biodiversity', color: '#10b981' },
-                ].map(({ key, label, color }) => (
-                  <label
-                    key={key}
-                    className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/80 cursor-pointer transition"
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                      <span className="text-slate-200">{label}</span>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={layers[key as keyof typeof layers]}
-                      onChange={() => toggleLayer(key as keyof typeof layers)}
-                      className="accent-cyan-500 rounded cursor-pointer"
-                    />
-                  </label>
-                ))}
+                ].map(({ key, label, color }) => {
+                  const active = layers[key as keyof typeof layers];
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => toggleLayer(key as keyof typeof layers)}
+                      className={`w-full flex items-center justify-between p-2 rounded-xl transition ${
+                        active ? 'bg-white/[0.06] text-slate-100 font-semibold' : 'text-slate-400 hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-[11px] truncate">{label}</span>
+                      </span>
+                      {active && <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                Risk & Population
+            {/* Risk & Analysis */}
+            <div className="pt-2 border-t border-white/[0.06]">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Risks & Isochrones
               </div>
               <div className="space-y-1">
-                <label className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/80 cursor-pointer transition">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                    <span>Flood Risk Drainage Basins</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={layers.floodZones}
-                    onChange={() => toggleLayer('floodZones')}
-                    className="accent-cyan-500 rounded cursor-pointer"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/80 cursor-pointer transition">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
-                    <span>Urban Heat Island (UHI)</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={layers.heatZones}
-                    onChange={() => toggleLayer('heatZones')}
-                    className="accent-cyan-500 rounded cursor-pointer"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/80 cursor-pointer transition">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" />
-                    <span>Population Density Choropleth</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={layers.populationDensity}
-                    onChange={() => toggleLayer('populationDensity')}
-                    className="accent-cyan-500 rounded cursor-pointer"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-1.5 rounded hover:bg-slate-800/80 cursor-pointer transition">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                    <span>Emergency Isochrones (Buffers)</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={layers.coverageIsochrones}
-                    onChange={() => toggleLayer('coverageIsochrones')}
-                    className="accent-cyan-500 rounded cursor-pointer"
-                  />
-                </label>
+                {[
+                  { key: 'floodZones', label: 'Flood Drainage Basins', color: '#3b82f6' },
+                  { key: 'heatZones', label: 'Urban Heat Island (UHI)', color: '#ea580c' },
+                  { key: 'coverageIsochrones', label: 'Emergency Isochrones (Buffers)', color: '#ef4444' },
+                  { key: 'populationDensity', label: 'Population Density Choropleth', color: '#06b6d4' },
+                ].map(({ key, label, color }) => {
+                  const active = layers[key as keyof typeof layers];
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => toggleLayer(key as keyof typeof layers)}
+                      className={`w-full flex items-center justify-between p-2 rounded-xl transition ${
+                        active ? 'bg-white/[0.06] text-slate-100 font-semibold' : 'text-slate-400 hover:bg-white/[0.03]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                        <span className="text-[11px] truncate">{label}</span>
+                      </span>
+                      {active && <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Map Legend Footer */}
-      <div className="absolute bottom-4 left-4 z-[900] bg-slate-900/90 backdrop-blur-md border border-slate-700/80 px-3 py-1.5 rounded-xl text-[11px] text-slate-300 flex items-center gap-4 shadow-xl hidden md:flex">
-        <span className="text-slate-400 font-bold">GIS Symbols:</span>
+      {/* 4. BOTTOM-LEFT DISCREET LEGEND */}
+      <div className="absolute bottom-4 left-4 z-[900] bg-[#0f172a]/90 backdrop-blur-xl border border-white/[0.08] px-3 py-1.5 rounded-xl text-[11px] text-slate-300 hidden md:flex items-center gap-3.5 shadow-xl">
+        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Legend</span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm shadow-red-500"></span> Hospital
+          <span className="w-2 h-2 rounded-full bg-red-500"></span> Hospital
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-sm shadow-orange-500"></span> Fire Stn
+          <span className="w-2 h-2 rounded-full bg-orange-500"></span> Fire Stn
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-sm shadow-purple-500"></span> Rapid Metro
+          <span className="w-2 h-2 rounded-full bg-purple-500"></span> Metro
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500"></span> Eco-Park
+          <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Park
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3 h-1 bg-amber-400 rounded"></span> NH-48 / Expressways
+          <span className="w-3 h-1 bg-amber-400 rounded-full"></span> NH-48
         </span>
       </div>
     </div>

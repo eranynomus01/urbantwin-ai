@@ -25,7 +25,8 @@ import { GURUGRAM_ROADS } from '@/data/gurugram/roads';
 import { GURUGRAM_FLOOD_RISK_ZONES } from '@/data/gurugram/floodRiskZones';
 import { GURUGRAM_HEAT_RISK_ZONES } from '@/data/gurugram/heatRiskZones';
 import { runWhatIfSimulation } from '@/lib/simulation/engine';
-import { Map as MapIcon, ArrowLeft, Building2, Sliders, Shield, Activity, Globe } from 'lucide-react';
+import { calculateHaversineDistance } from '@/lib/routing/osrm';
+import { ArrowLeft } from 'lucide-react';
 
 import { 
   City, 
@@ -34,7 +35,8 @@ import {
   SimulationResult, 
   EmergencyIncident, 
   RealTimeCityTelemetry,
-  ScenarioItem 
+  ScenarioItem,
+  UserLiveLocation
 } from '@/types';
 
 export default function UrbanTwinCommandCenter() {
@@ -48,6 +50,10 @@ export default function UrbanTwinCommandCenter() {
   const [selectedZone, setSelectedZone] = useState<Zone | null>(GURUGRAM_SECTORS[0]); // Default DLF Cyber City
   const [mapCenter, setMapCenter] = useState<[number, number]>(activeCity.center);
   const [mapZoom, setMapZoom] = useState<number>(activeCity.defaultZoom);
+
+  // Live User GPS
+  const [userLiveLocation, setUserLiveLocation] = useState<UserLiveLocation | null>(null);
+  const [isLocating, setIsLocating] = useState<boolean>(false);
 
   // Active Simulation & Incidents
   const [activeSimulation, setActiveSimulation] = useState<SimulationResult | null>(null);
@@ -93,7 +99,7 @@ export default function UrbanTwinCommandCenter() {
       so2: 14.2,
       co: 1.2,
       category: 'Poor',
-      stationName: 'Sector 51 Continuous Ambient Air Quality Station, Gurugram',
+      stationName: 'Sector 51 CAAQMS, Gurugram',
       sourceName: 'CPCB / NAQI Open Data Feed',
       sourceUrl: 'https://cpcb.nic.in/',
       lastUpdated: '18:45 IST',
@@ -131,12 +137,90 @@ export default function UrbanTwinCommandCenter() {
     return () => clearInterval(interval);
   }, [activeCity.id]);
 
+  // Live Location Trigger
+  const handleTriggerLocateMe = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const accuracyM = pos.coords.accuracy;
+
+        let closestSec = GURUGRAM_SECTORS[0];
+        let minD = Infinity;
+        GURUGRAM_SECTORS.forEach((s) => {
+          const d = calculateHaversineDistance([lat, lng], s.center);
+          if (d < minD) {
+            minD = d;
+            closestSec = s;
+          }
+        });
+
+        let nearestH = GURUGRAM_HOSPITALS[0];
+        let minHD = Infinity;
+        GURUGRAM_HOSPITALS.forEach((h) => {
+          const d = calculateHaversineDistance([lat, lng], h.coordinates);
+          if (d < minHD) {
+            minHD = d;
+            nearestH = h;
+          }
+        });
+
+        let nearestF = GURUGRAM_FIRE_STATIONS[0];
+        let minFD = Infinity;
+        GURUGRAM_FIRE_STATIONS.forEach((f) => {
+          const d = calculateHaversineDistance([lat, lng], f.coordinates);
+          if (d < minFD) {
+            minFD = d;
+            nearestF = f;
+          }
+        });
+
+        const userLoc: UserLiveLocation = {
+          lat,
+          lng,
+          accuracyM,
+          timestamp: new Date().toLocaleTimeString(),
+          nearestSectorName: closestSec.name,
+          nearestHospitalName: nearestH.name.split('—')[0],
+          nearestHospitalDistKm: minHD,
+          nearestFireStationName: nearestF.name.split(' ')[0],
+          nearestFireDistKm: minFD,
+        };
+
+        setUserLiveLocation(userLoc);
+        setMapCenter([lat, lng]);
+        setMapZoom(14.5);
+        setIsLocating(false);
+
+        try {
+          const res = await fetch(`/api/environmental?lat=${lat}&lng=${lng}&city_name=My%20Location`);
+          if (res.ok) {
+            const liveData = await res.json();
+            setTelemetry(liveData);
+          }
+        } catch (e) {
+          console.warn('GPS weather fetch error:', e);
+        }
+      },
+      (err) => {
+        console.warn('Geolocation error:', err);
+        setIsLocating(false);
+        alert('Could not detect location. Please check browser GPS permissions.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
+
   const handleSelectZone = (zone: Zone | null) => {
     setSelectedZone(zone);
     if (zone) {
       setMapCenter(zone.center);
       setMapZoom(13.8);
-      // On desktop keep tab, on mobile keep map visible or open inspector
     }
   };
 
@@ -236,12 +320,12 @@ export default function UrbanTwinCommandCenter() {
     } else if (step === 4) {
       setActiveTab('emergency');
     } else if (step === 5) {
-      handleAskAI('Where should we consider adding a new fire station in Gurugram?');
+      handleAskAI('Where should Gurugram add a new fire station for maximum coverage?');
     }
   };
 
   return (
-    <div className={`h-screen w-screen flex flex-col ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'} overflow-hidden`}>
+    <div className="h-screen w-screen flex flex-col bg-[#0a0f1e] text-slate-100 overflow-hidden font-sans">
       {/* 1. HEADER */}
       <Header
         activeCity={activeCity}
@@ -263,13 +347,11 @@ export default function UrbanTwinCommandCenter() {
       />
 
       {/* 2. REAL-TIME TELEMETRY TICKER */}
-      <div className="overflow-x-auto no-scrollbar">
-        <RealTimeTelemetry telemetry={telemetry} />
-      </div>
+      <RealTimeTelemetry telemetry={telemetry} />
 
       {/* 3. MAIN COMMAND CANVAS */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative pb-14 md:pb-0">
-        {/* MAP CANVAS (Desktop: always left side; Mobile: visible when activeTab === 'map') */}
+        {/* MAP CANVAS */}
         <div className={`flex-1 h-full relative ${activeTab !== 'map' ? 'hidden md:block' : 'block w-full'}`}>
           <DigitalTwinMap
             center={mapCenter}
@@ -277,6 +359,9 @@ export default function UrbanTwinCommandCenter() {
             isDarkMode={isDarkMode}
             selectedZone={selectedZone}
             onSelectZone={handleSelectZone}
+            userLiveLocation={userLiveLocation}
+            onTriggerLocateMe={handleTriggerLocateMe}
+            isLocating={isLocating}
             sectors={GURUGRAM_SECTORS}
             hospitals={GURUGRAM_HOSPITALS}
             fireStations={GURUGRAM_FIRE_STATIONS}
@@ -292,19 +377,19 @@ export default function UrbanTwinCommandCenter() {
             onMapClickCoord={handleMapClickCoord}
           />
 
-          {/* Mobile Bottom Quick Pill when on Map view */}
+          {/* Mobile Bottom Quick Card when on Map view */}
           {selectedZone && activeTab === 'map' && (
-            <div className="md:hidden absolute bottom-16 left-3 right-3 z-[1000] bg-slate-900/95 border border-cyan-500/50 backdrop-blur-xl p-3 rounded-2xl shadow-2xl flex items-center justify-between text-xs">
+            <div className="md:hidden absolute bottom-16 left-3 right-3 z-[1000] bg-[#0f172a]/95 border border-white/[0.1] backdrop-blur-2xl p-3.5 rounded-2xl shadow-2xl flex items-center justify-between text-xs">
               <div>
-                <span className="text-[10px] font-bold text-cyan-400 font-mono uppercase">{selectedZone.sectorNumber}</span>
+                <span className="text-[10px] font-bold text-sky-400 font-mono uppercase">{selectedZone.sectorNumber}</span>
                 <h4 className="font-extrabold text-slate-100 truncate max-w-[190px]">{selectedZone.name}</h4>
                 <div className="text-[10px] text-slate-400">
-                  Pop: <b>{selectedZone.population.toLocaleString('en-IN')}</b> • AQI: <b>{selectedZone.avgAqi}</b>
+                  Pop: <b>{selectedZone.population.toLocaleString('en-IN')}</b> · AQI: <b>{selectedZone.avgAqi}</b>
                 </div>
               </div>
               <button
                 onClick={() => setActiveTab('inspector')}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center gap-1 shadow-md shadow-cyan-600/30 shrink-0"
+                className="btn-primary py-2 px-3 text-xs flex items-center gap-1 shrink-0"
               >
                 <span>Inspect</span> →
               </button>
@@ -313,18 +398,18 @@ export default function UrbanTwinCommandCenter() {
         </div>
 
         {/* RIGHT / FULL-SCREEN STUDIO DRAWER */}
-        <div className={`w-full md:w-[430px] lg:w-[480px] h-full bg-slate-950/95 border-l border-slate-800 flex flex-col z-30 shadow-2xl backdrop-blur-xl ${
+        <div className={`w-full md:w-[420px] lg:w-[460px] h-full bg-[#080d1a]/95 border-l border-white/[0.06] flex flex-col z-30 shadow-2xl backdrop-blur-2xl ${
           activeTab === 'map' ? 'hidden md:flex' : 'flex'
         }`}>
           {/* Mobile Back to Map Header */}
-          <div className="md:hidden flex items-center justify-between p-3 border-b border-slate-800 bg-slate-900/80">
+          <div className="md:hidden flex items-center justify-between p-3.5 border-b border-white/[0.06] bg-[#0f172a]/80">
             <button
               onClick={() => setActiveTab('map')}
-              className="flex items-center gap-1.5 text-xs font-bold text-cyan-400 bg-slate-800 px-3 py-1.5 rounded-xl"
+              className="flex items-center gap-1.5 text-xs font-bold text-sky-400 bg-white/[0.05] px-3 py-1.5 rounded-xl"
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Back to GIS Map
             </button>
-            <span className="text-xs font-extrabold text-slate-200 uppercase tracking-wider">
+            <span className="text-xs font-extrabold text-slate-300 uppercase tracking-wider">
               {activeTab.toUpperCase().replace('_', ' ')}
             </span>
           </div>
@@ -353,7 +438,7 @@ export default function UrbanTwinCommandCenter() {
                 onAskAI={handleAskAI}
                 onEnableMapDrop={(mode) => {
                   setMapClickMode(mode);
-                  setActiveTab('map'); // Switch to map on mobile so user can tap
+                  setActiveTab('map');
                 }}
                 droppedCoords={droppedCoords}
               />
@@ -370,7 +455,7 @@ export default function UrbanTwinCommandCenter() {
                 onClearIncident={() => setActiveIncident(null)}
                 onEnableMapDrop={(mode) => {
                   setMapClickMode(mode);
-                  setActiveTab('map'); // Switch to map on mobile so user can tap
+                  setActiveTab('map');
                 }}
                 onAskAI={handleAskAI}
                 droppedCoords={droppedCoords}

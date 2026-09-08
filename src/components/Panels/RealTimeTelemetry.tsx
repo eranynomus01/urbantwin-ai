@@ -2,141 +2,92 @@
 
 import React from 'react';
 import { RealTimeCityTelemetry } from '@/types';
-import { CloudRain, Wind, Activity, Gauge, Thermometer, ShieldCheck, CheckCircle, ExternalLink } from 'lucide-react';
+import { Thermometer, Wind, Activity, Gauge, Shield } from 'lucide-react';
 
-interface RealTimeTelemetryProps {
-  telemetry: RealTimeCityTelemetry;
-  isLoading?: boolean;
-}
+const AQI_COLORS: Record<string, string> = {
+  'Good': '#34d399',
+  'Moderate': '#fbbf24',
+  'Poor': '#f97316',
+  'Very Poor': '#ef4444',
+  'Severe': '#dc2626',
+};
 
-export default function RealTimeTelemetry({ telemetry }: RealTimeTelemetryProps) {
+export default function RealTimeTelemetry({ telemetry }: { telemetry: RealTimeCityTelemetry }) {
   const { weather, airQuality, trafficSummary, emergencyStatus } = telemetry;
+  const aqiColor = AQI_COLORS[airQuality.category] || '#f97316';
 
-  const getAqiColor = (aqi: number) => {
-    if (aqi <= 50) return 'text-emerald-400 bg-emerald-950/70 border-emerald-500/50 shadow-emerald-950/30';
-    if (aqi <= 100) return 'text-lime-400 bg-lime-950/70 border-lime-500/50 shadow-lime-950/30';
-    if (aqi <= 200) return 'text-amber-400 bg-amber-950/70 border-amber-500/50 shadow-amber-950/30';
-    if (aqi <= 300) return 'text-orange-400 bg-orange-950/70 border-orange-500/50 shadow-orange-950/30';
-    return 'text-red-400 bg-red-950/70 border-red-500/50 shadow-red-950/30';
-  };
-
-  const aqiBadgeStyle = getAqiColor(airQuality.aqi);
+  const tiles = [
+    {
+      icon: <Thermometer className="w-4 h-4 text-amber-400" />,
+      label: 'Temperature',
+      value: `${weather.temperatureC}°C`,
+      sub: `Feels ${weather.feelsLikeC}°C · ${weather.humidityPct}% humidity`,
+      source: 'Open-Meteo',
+    },
+    {
+      icon: <Wind className="w-4 h-4 text-sky-400" />,
+      label: 'Wind / Rain',
+      value: `${weather.windSpeedKmh} km/h ${weather.windDirection}`,
+      sub: `Precip: ${weather.rainfallMmPerHr} mm/h`,
+      source: 'ECMWF Grid',
+    },
+    {
+      icon: <Activity className="w-4 h-4" style={{ color: aqiColor }} />,
+      label: 'Air Quality (AQI)',
+      value: String(airQuality.aqi),
+      sub: `${airQuality.category} · PM2.5: ${airQuality.pm25} µg/m³`,
+      source: 'CPCB NAQI',
+      valueColor: aqiColor,
+    },
+    {
+      icon: <Gauge className="w-4 h-4 text-orange-400" />,
+      label: 'Traffic Stress',
+      value: `${trafficSummary.overallIndex}%`,
+      sub: `Avg speed: ${trafficSummary.avgCitySpeedKmh} km/h · ${trafficSummary.congestedCorridorsCount} congested`,
+      source: 'GMDA ICCC',
+    },
+    {
+      icon: <Shield className="w-4 h-4 text-emerald-400" />,
+      label: 'Emergency Status',
+      value: emergencyStatus.systemAlertLevel,
+      sub: `Fire ETA: ${emergencyStatus.avgFireResponseTimeMin}m · Amb: ${emergencyStatus.avgAmbulanceResponseTimeMin}m`,
+      source: 'OSRM Grid',
+      valueColor: emergencyStatus.systemAlertLevel === 'NORMAL' ? '#34d399' : '#f97316',
+    },
+  ];
 
   return (
-    <div className="w-full bg-slate-950/90 backdrop-blur-md border-b border-slate-800 px-4 py-2 text-xs text-slate-200 shadow-xl z-20">
-      <div className="max-w-[1700px] mx-auto flex flex-wrap items-center justify-between gap-2.5">
-        {/* City Live Indicator */}
-        <div className="flex items-center gap-2 pr-3 border-r border-slate-800">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500"></span>
+    <div className="w-full shrink-0 border-b border-white/[0.05] bg-[#080d1a]/80 backdrop-blur-xl">
+      <div className="flex items-center gap-2 px-5 py-2 overflow-x-auto no-scrollbar">
+        {/* City Live Marker */}
+        <div className="flex items-center gap-2 pr-4 mr-1 border-r border-white/[0.07] shrink-0">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
           </span>
-          <div>
-            <div className="font-extrabold text-slate-100 text-sm flex items-center gap-1.5">
-              <span>{telemetry.cityName}</span>
-              <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 border border-cyan-700/60 font-mono font-bold">
-                Live Twin
-              </span>
-            </div>
-          </div>
+          <span className="text-xs font-bold text-slate-200">{telemetry.cityName}</span>
+          <span className="badge-live">Live</span>
         </div>
 
-        {/* 1. WEATHER TELEMETRY */}
-        <div className="flex items-center gap-2.5 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 py-1.5 shadow-md">
-          <div className="w-7 h-7 rounded-lg bg-amber-950/60 border border-amber-500/30 flex items-center justify-center text-amber-400">
-            <Thermometer className="w-4 h-4" />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="font-black text-sm text-slate-100">{weather.temperatureC}°C</span>
-              <span className="text-slate-400 text-[11px]">(Feels {weather.feelsLikeC}°C)</span>
-              <span className="text-[11px] text-cyan-400 font-semibold">💧 {weather.humidityPct}%</span>
+        {/* Tiles */}
+        {tiles.map((tile) => (
+          <div key={tile.label} className="telemetry-tile group">
+            {tile.icon}
+            <div>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-sm font-extrabold" style={{ color: tile.valueColor || '#f1f5f9' }}>
+                  {tile.value}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">{tile.label}</span>
+              </div>
+              <div className="text-[10px] text-slate-500 leading-tight hidden md:block">{tile.sub}</div>
             </div>
-            <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400 mt-0.5 font-medium">
-              <span className="text-slate-300 flex items-center gap-1">
-                <CheckCircle className="w-2.5 h-2.5 text-emerald-400" /> Open-Meteo
-              </span>
-              <span className="text-amber-400/90 shrink-0 font-mono">{weather.lastUpdated}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 2. RAIN & PRECIPITATION */}
-        <div className="flex items-center gap-2.5 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 py-1.5 shadow-md">
-          <div className="w-7 h-7 rounded-lg bg-cyan-950/60 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-            <CloudRain className="w-4 h-4" />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-100">
-                Precipitation: <b className="text-cyan-300">{weather.rainfallMmPerHr} mm/h</b>
-              </span>
-              <span className="text-slate-400 text-[11px] flex items-center gap-0.5">
-                <Wind className="w-3 h-3 text-slate-400" /> {weather.windSpeedKmh} km/h {weather.windDirection}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400 mt-0.5 font-medium">
-              <span className="text-slate-300">ECMWF / DWD Grid</span>
-              <span className="text-cyan-400/90 shrink-0 font-mono">{weather.lastUpdated}</span>
+            {/* Source tooltip on hover */}
+            <div className="hidden group-hover:block absolute top-full mt-1 left-0 bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-[10px] text-sky-400 font-medium shadow-xl z-50 whitespace-nowrap pointer-events-none">
+              Source: {tile.source} · {weather.lastUpdated}
             </div>
           </div>
-        </div>
-
-        {/* 3. AIR QUALITY / AQI */}
-        <div className={`flex items-center gap-2.5 border rounded-xl px-3 py-1.5 shadow-md ${aqiBadgeStyle}`}>
-          <div className="w-7 h-7 rounded-lg bg-black/40 flex items-center justify-center">
-            <Activity className="w-4 h-4" />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="font-black text-sm">AQI {airQuality.aqi}</span>
-              <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold uppercase bg-black/50">
-                {airQuality.category}
-              </span>
-              <span className="text-[10px] opacity-90 font-medium">PM2.5: {airQuality.pm25}</span>
-            </div>
-            <div className="flex items-center justify-between gap-2 text-[10px] opacity-90 mt-0.5 font-medium">
-              <span className="flex items-center gap-1">
-                <CheckCircle className="w-2.5 h-2.5 text-emerald-400" /> CPCB NAQI Feed
-              </span>
-              <span className="shrink-0 font-mono">{airQuality.lastUpdated}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 4. TRAFFIC FLOW STATUS */}
-        <div className="flex items-center gap-2.5 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 py-1.5 shadow-md">
-          <div className="w-7 h-7 rounded-lg bg-orange-950/60 border border-orange-500/30 flex items-center justify-center text-orange-400">
-            <Gauge className="w-4 h-4" />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="font-bold text-slate-100">
-                Traffic Stress: <span className="text-orange-400 font-extrabold">{trafficSummary.overallIndex}%</span>
-              </span>
-              <span className="text-slate-400 text-[10px]">Avg {trafficSummary.avgCitySpeedKmh} km/h</span>
-            </div>
-            <div className="flex items-center justify-between gap-2 text-[10px] text-slate-400 mt-0.5 font-medium">
-              <span className="text-slate-300">GMDA ICCC Telemetry</span>
-              <span className="text-orange-400/90 shrink-0 font-mono">{trafficSummary.lastUpdated}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 5. EMERGENCY READINESS */}
-        <div className="flex items-center gap-2.5 bg-slate-900/80 border border-slate-700/70 rounded-xl px-3 py-1.5 shadow-md">
-          <div className="w-7 h-7 rounded-lg bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-            <ShieldCheck className="w-4 h-4" />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-slate-100 text-[11px]">
-              Avg Dispatch: <b className="text-emerald-400 font-extrabold">{emergencyStatus.avgFireResponseTimeMin}m Fire</b> • <b className="text-cyan-400 font-extrabold">{emergencyStatus.avgAmbulanceResponseTimeMin}m Med</b>
-            </span>
-            <span className="text-[10px] text-slate-400">
-              Readiness: <span className="text-emerald-400 font-bold">{emergencyStatus.systemAlertLevel}</span> (OSRM Grid)
-            </span>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
