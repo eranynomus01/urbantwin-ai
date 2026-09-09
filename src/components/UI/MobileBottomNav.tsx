@@ -11,8 +11,8 @@ import {
 } from 'lucide-react';
 
 interface MobileBottomNavProps {
-  activeTab: 'map' | 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios';
-  onSelectTab: (tab: 'map' | 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios') => void;
+  activeTab: 'map' | 'services' | 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios';
+  onSelectTab: (tab: 'map' | 'services' | 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios') => void;
   selectedZoneName?: string;
 }
 
@@ -23,11 +23,11 @@ export default function MobileBottomNav({
 }: MobileBottomNavProps) {
   const tabs = [
     { id: 'map', label: 'Map', icon: MapIcon },
+    { id: 'services', label: 'Services', icon: LayoutGrid },
     { id: 'inspector', label: 'Sector', icon: Building2 },
     { id: 'simulator', label: 'What-If', icon: Layers },
     { id: 'emergency', label: 'Dispatch', icon: Shield },
     { id: 'ai_advisor', label: 'AI Advisor', icon: Sparkles },
-    { id: 'scenarios', label: 'Compare', icon: LayoutGrid },
   ];
 
   return (

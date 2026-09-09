@@ -93,6 +93,12 @@ const parkIcon = createCustomIcon('#10b981', '🌳', 28);
 const metroIcon = createCustomIcon('#8b5cf6', '🚇', 28);
 const incidentIcon = createCustomIcon('#dc2626', '🚨', 38, 'ACTIVE INCIDENT');
 
+// Additional Municipal Service Icons
+const waterIcon = createCustomIcon('#06b6d4', '💧', 30, 'WATER');
+const powerIcon = createCustomIcon('#f59e0b', '⚡', 30, 'POWER');
+const wasteIcon = createCustomIcon('#10b981', '♻️', 28, 'WASTE');
+const shelterIcon = createCustomIcon('#a855f7', '🏕️', 30, 'SHELTER');
+
 interface MapInnerProps {
   center: [number, number];
   zoom: number;
@@ -100,6 +106,9 @@ interface MapInnerProps {
   selectedZone: Zone | null;
   onSelectZone: (zone: Zone | null) => void;
   userLiveLocation: UserLiveLocation | null;
+  municipalServices?: MunicipalServiceAsset[];
+  selectedServiceTypes?: Set<MunicipalServiceType>;
+  onSelectMunicipalAsset?: (asset: MunicipalServiceAsset) => void;
   layers: {
     roads: boolean;
     hospitals: boolean;
@@ -166,26 +175,26 @@ export default function MapInner({
   mapClickMode,
   onMapClickCoord,
 }: MapInnerProps) {
-  const tileUrl = isDarkMode
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-  const attribution = isDarkMode
-    ? '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
-    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
   return (
     <div className="w-full h-full relative">
       <MapContainer
         center={center}
         zoom={zoom}
-        style={{ width: '100%', height: '100%', background: isDarkMode ? '#0f172a' : '#f1f5f9' }}
+        style={{ width: '100%', height: '100%', background: isDarkMode ? '#0a0f1e' : '#f1f5f9' }}
         zoomControl={false}
       >
         <MapRecenter center={center} zoom={zoom} />
         <MapEvents onMapClick={onMapClickCoord} mode={mapClickMode} />
 
-        <TileLayer attribution={attribution} url={tileUrl} />
+        <TileLayer 
+          attribution={attribution} 
+          url={tileUrl} 
+          className={isDarkMode ? 'dark-tiles' : ''}
+          maxZoom={19}
+        />
 
         {/* 0. USER LIVE GPS LOCATION PIN & ACCURACY CIRCLE */}
         {userLiveLocation && (
@@ -548,6 +557,57 @@ export default function MapInner({
               </Popup>
             </Marker>
           ))}
+
+        {/* 13B. MUNICIPAL INFRASTRUCTURE SERVICES (WATER, POWER, SHELTER, WASTE) */}
+        {municipalServices &&
+          municipalServices
+            .filter((srv) => !selectedServiceTypes || selectedServiceTypes.has(srv.serviceType))
+            .map((srv) => {
+              const icon = 
+                srv.serviceType === 'water_drainage' ? waterIcon :
+                srv.serviceType === 'power_grid' ? powerIcon :
+                srv.serviceType === 'waste_sanitation' ? wasteIcon :
+                srv.serviceType === 'disaster_shelter' ? shelterIcon :
+                srv.serviceType === 'healthcare' ? hospitalIcon :
+                srv.serviceType === 'fire_rescue' ? fireIcon : policeIcon;
+
+              return (
+                <Marker 
+                  key={srv.id} 
+                  position={srv.coordinates} 
+                  icon={icon}
+                  eventHandlers={{
+                    click: () => {
+                      if (onSelectMunicipalAsset) onSelectMunicipalAsset(srv);
+                    }
+                  }}
+                >
+                  <Popup>
+                    <div className="text-xs p-1 text-slate-900 min-w-[200px]">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700">
+                          {srv.serviceType.replace('_', ' ')}
+                        </span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                          {srv.status}
+                        </span>
+                      </div>
+                      <div className="font-bold text-slate-900 text-sm leading-tight">{srv.name}</div>
+                      <div className="text-slate-600 text-[11px] mt-0.5">{srv.category}</div>
+                      <div className="my-1.5 p-1.5 bg-slate-100 rounded text-[11px] font-semibold text-slate-800">
+                        {srv.capacityOrLoad}
+                      </div>
+                      <div className="text-slate-500 text-[10px] truncate">{srv.address}</div>
+                      {srv.phone && (
+                        <div className="mt-1 text-sky-700 font-mono font-bold text-[11px]">
+                          📞 {srv.phone}
+                        </div>
+                      )}
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })}
 
         {/* 14. ACTIVE INCIDENT PIN */}
         {activeIncident && (

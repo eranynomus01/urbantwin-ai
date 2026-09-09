@@ -21,11 +21,12 @@ interface HeaderProps {
 }
 
 const TABS = [
+  { id: 'services', label: 'Services Portal', icon: LayoutGrid },
   { id: 'inspector', label: 'Sector Map', icon: Map },
   { id: 'simulator', label: 'What-If', icon: BarChart2 },
   { id: 'emergency', label: 'Emergency', icon: Shield },
   { id: 'ai_advisor', label: 'AI Advisor', icon: Sparkles },
-  { id: 'scenarios', label: 'Compare', icon: LayoutGrid },
+  { id: 'scenarios', label: 'Compare', icon: FileBarChart },
 ];
 
 export default function Header({
@@ -101,26 +102,40 @@ export default function Header({
           <div className="relative">
             <button
               onClick={() => setCityOpen(!cityOpen)}
-              className="btn-ghost flex items-center gap-1.5 px-3 py-1.5 text-xs"
+              className="btn-ghost flex items-center gap-1.5 px-3 py-1.5 text-xs bg-white/[0.04] border border-white/[0.08] rounded-xl hover:bg-white/[0.08]"
             >
-              <span className="text-slate-200 font-semibold">{activeCity.name}</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span className="text-slate-100 font-bold">{activeCity.name}</span>
               <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
             {cityOpen && (
-              <div className="absolute right-0 top-full mt-2 w-56 panel-card rounded-xl shadow-2xl overflow-hidden z-[100]">
-                {SUPPORTED_CITIES.map((city) => (
-                  <button
-                    key={city.id}
-                    onClick={() => { onSelectCity(city); setCityOpen(false); }}
-                    className={`w-full text-left px-4 py-3 text-xs transition hover:bg-white/[0.06] ${
-                      city.id === activeCity.id ? 'text-sky-400 font-bold' : 'text-slate-300 font-medium'
-                    } ${!city.isActive ? 'opacity-40 cursor-not-allowed' : ''}`}
-                    disabled={!city.isActive}
-                  >
-                    <div className="font-semibold">{city.name}</div>
-                    <div className="text-[10px] text-slate-500 mt-0.5">{city.state}, {city.country} {!city.isActive && '· Coming Soon'}</div>
-                  </button>
-                ))}
+              <div className="absolute right-0 top-full mt-2 w-64 panel-card rounded-2xl shadow-2xl overflow-hidden z-[100] border border-white/[0.1] bg-[#0c1427]/98 backdrop-blur-2xl">
+                <div className="px-4 py-2 border-b border-white/[0.06] bg-white/[0.02]">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-sky-400">
+                    Haryana Districts & Twin Cities
+                  </span>
+                </div>
+                <div className="max-h-72 overflow-y-auto no-scrollbar py-1">
+                  {SUPPORTED_CITIES.map((city) => (
+                    <button
+                      key={city.id}
+                      onClick={() => { onSelectCity(city); setCityOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-xs transition hover:bg-white/[0.08] flex items-center justify-between ${
+                        city.id === activeCity.id ? 'bg-sky-500/15 text-sky-300 font-bold' : 'text-slate-300 font-medium'
+                      }`}
+                    >
+                      <div>
+                        <div className="font-semibold text-slate-100">{city.name}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[170px]">
+                          Pop: {city.totalPopulation.toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      {city.id === activeCity.id && (
+                        <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0"></span>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>

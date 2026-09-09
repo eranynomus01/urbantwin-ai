@@ -2,15 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+import { SUPPORTED_CITIES, getActiveCity } from '@/data/cities';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const cityParam = searchParams.get('city');
+    const matchedCity = cityParam ? SUPPORTED_CITIES.find(c => c.id === cityParam) : null;
+
     const latParam = searchParams.get('lat');
     const lngParam = searchParams.get('lng');
-    const cityName = searchParams.get('city_name') || 'Gurugram';
+    const cityName = searchParams.get('city_name') || matchedCity?.name || 'Gurugram';
 
-    const lat = latParam ? parseFloat(latParam) : 28.4595;
-    const lng = lngParam ? parseFloat(lngParam) : 77.0266;
+    const lat = latParam ? parseFloat(latParam) : (matchedCity?.center[0] ?? 28.4595);
+    const lng = lngParam ? parseFloat(lngParam) : (matchedCity?.center[1] ?? 77.0266);
+
 
     const now = new Date();
     const timeStringIST = now.toLocaleTimeString('en-IN', {

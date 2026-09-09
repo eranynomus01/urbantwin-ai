@@ -163,6 +163,33 @@ export interface HeatRiskZone {
   recommendedInterventions: string[];
 }
 
+export type MunicipalServiceType = 
+  | 'healthcare'
+  | 'fire_rescue'
+  | 'police_safety'
+  | 'water_drainage'
+  | 'power_grid'
+  | 'waste_sanitation'
+  | 'disaster_shelter'
+  | 'transit_roads';
+
+export interface MunicipalServiceAsset {
+  id: string;
+  cityId: string;
+  name: string;
+  serviceType: MunicipalServiceType;
+  category: string;
+  status: 'Operational' | 'Standby' | 'Maintenance' | 'Critical Alert';
+  capacityOrLoad: string;
+  phone?: string;
+  address: string;
+  coordinates: [number, number]; // [lat, lng]
+  coverageRadiusKm?: number;
+  details?: Record<string, string | number>;
+  source: string;
+}
+
+
 // ----------------------------------------------------------------------------
 // Telemetry & Real-Time Data Types
 // ----------------------------------------------------------------------------

@@ -28,6 +28,9 @@ import { runWhatIfSimulation } from '@/lib/simulation/engine';
 import { calculateHaversineDistance } from '@/lib/routing/osrm';
 import { ArrowLeft } from 'lucide-react';
 
+import ServiceSelectorBar from '@/components/UI/ServiceSelectorBar';
+import ServiceActionPanel from '@/components/Panels/ServiceActionPanel';
+import { HARYANA_MUNICIPAL_SERVICES, getServicesByCity } from '@/data/haryanaServices';
 import { 
   City, 
   Zone, 
@@ -36,7 +39,9 @@ import {
   EmergencyIncident, 
   RealTimeCityTelemetry,
   ScenarioItem,
-  UserLiveLocation
+  UserLiveLocation,
+  MunicipalServiceType,
+  MunicipalServiceAsset
 } from '@/types';
 
 export default function UrbanTwinCommandCenter() {
@@ -44,7 +49,21 @@ export default function UrbanTwinCommandCenter() {
   const [activeCity, setActiveCity] = useState<City>(getActiveCity('gurugram'));
   const [userRole, setUserRole] = useState<UserRole>('urban_planner');
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'map' | 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios'>('inspector');
+  const [activeTab, setActiveTab] = useState<'map' | 'services' | 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios'>('services');
+
+  // Selective Services State
+  const [selectedServiceTypes, setSelectedServiceTypes] = useState<Set<MunicipalServiceType>>(
+    new Set<MunicipalServiceType>([
+      'healthcare',
+      'fire_rescue',
+      'police_safety',
+      'water_drainage',
+      'power_grid',
+      'disaster_shelter',
+      'waste_sanitation',
+      'transit_roads'
+    ])
+  );
 
   // GIS Selection & Entities
   const [selectedZone, setSelectedZone] = useState<Zone | null>(GURUGRAM_SECTORS[0]); // Default DLF Cyber City
@@ -324,6 +343,64 @@ export default function UrbanTwinCommandCenter() {
     }
   };
 
+  const handleToggleService = (srvType: MunicipalServiceType) => {
+    setSelectedServiceTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(srvType)) {
+        next.delete(srvType);
+      } else {
+        next.add(srvType);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAllServices = () => {
+    setSelectedServiceTypes(
+      new Set<MunicipalServiceType>([
+        'healthcare',
+        'fire_rescue',
+        'police_safety',
+        'water_drainage',
+        'power_grid',
+        'disaster_shelter',
+        'waste_sanitation',
+        'transit_roads',
+      ])
+    );
+  };
+
+  const handleClearAllServices = () => {
+    setSelectedServiceTypes(new Set<MunicipalServiceType>());
+  };
+
+  const handleFocusMunicipalAsset = (asset: MunicipalServiceAsset) => {
+    setMapCenter(asset.coordinates);
+    setMapZoom(14.5);
+  };
+
+  const handleSimulateDisruption = (asset: MunicipalServiceAsset) => {
+    handleAskAI(`What is the cascade impact if ${asset.name} in ${activeCity.name} goes offline, and what contingency emergency protocols should be deployed?`);
+  };
+
+  const cityServices = React.useMemo(() => {
+    return HARYANA_MUNICIPAL_SERVICES.filter((s) => s.cityId === activeCity.id);
+  }, [activeCity.id]);
+
+  const serviceCounts = React.useMemo(() => {
+    const counts: Record<MunicipalServiceType, number> = {
+      healthcare: cityServices.filter(s => s.serviceType === 'healthcare').length + (activeCity.id === 'gurugram' ? GURUGRAM_HOSPITALS.length : 0),
+      fire_rescue: cityServices.filter(s => s.serviceType === 'fire_rescue').length + (activeCity.id === 'gurugram' ? GURUGRAM_FIRE_STATIONS.length : 0),
+      police_safety: cityServices.filter(s => s.serviceType === 'police_safety').length + (activeCity.id === 'gurugram' ? GURUGRAM_POLICE_STATIONS.length : 0),
+      water_drainage: cityServices.filter(s => s.serviceType === 'water_drainage').length,
+      power_grid: cityServices.filter(s => s.serviceType === 'power_grid').length,
+      disaster_shelter: cityServices.filter(s => s.serviceType === 'disaster_shelter').length,
+      waste_sanitation: cityServices.filter(s => s.serviceType === 'waste_sanitation').length,
+      transit_roads: cityServices.filter(s => s.serviceType === 'transit_roads').length + (activeCity.id === 'gurugram' ? GURUGRAM_TRANSIT_NODES.length : 0),
+    };
+    return counts;
+  }, [cityServices, activeCity.id]);
+
   return (
     <div className="h-screen w-screen flex flex-col bg-[#0a0f1e] text-slate-100 overflow-hidden font-sans">
       {/* 1. HEADER */}
@@ -341,9 +418,18 @@ export default function UrbanTwinCommandCenter() {
         onOpenDataModal={() => setIsDataModalOpen(true)}
         onOpenReportModal={() => setIsReportModalOpen(true)}
         onOpenTourModal={() => setIsTourModalOpen(true)}
-        activeTab={activeTab === 'map' ? 'inspector' : activeTab}
+        activeTab={activeTab === 'map' ? 'services' : activeTab}
         onSelectTab={setActiveTab}
         onTriggerQuickDemo={handleTriggerQuickDemo}
+      />
+
+      {/* 1B. SELECTIVE SERVICES BAR */}
+      <ServiceSelectorBar
+        selectedServices={selectedServiceTypes}
+        onToggleService={handleToggleService}
+        onSelectAll={handleSelectAllServices}
+        onClearAll={handleClearAllServices}
+        serviceCounts={serviceCounts}
       />
 
       {/* 2. REAL-TIME TELEMETRY TICKER */}
@@ -362,6 +448,9 @@ export default function UrbanTwinCommandCenter() {
             userLiveLocation={userLiveLocation}
             onTriggerLocateMe={handleTriggerLocateMe}
             isLocating={isLocating}
+            municipalServices={cityServices}
+            selectedServiceTypes={selectedServiceTypes}
+            onSelectMunicipalAsset={handleFocusMunicipalAsset}
             sectors={GURUGRAM_SECTORS}
             hospitals={GURUGRAM_HOSPITALS}
             fireStations={GURUGRAM_FIRE_STATIONS}
@@ -415,6 +504,17 @@ export default function UrbanTwinCommandCenter() {
           </div>
 
           <div className="flex-1 overflow-hidden">
+            {activeTab === 'services' && (
+              <ServiceActionPanel
+                activeCity={activeCity}
+                services={cityServices}
+                selectedServiceTypes={selectedServiceTypes}
+                onFocusAsset={handleFocusMunicipalAsset}
+                onAskAI={handleAskAI}
+                onSimulateDisruption={handleSimulateDisruption}
+              />
+            )}
+
             {activeTab === 'inspector' && (
               <ZoneInspector
                 selectedZone={selectedZone}

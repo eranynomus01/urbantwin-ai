@@ -35,6 +35,9 @@
   z-index: 10;
   background: #0a0f1e;
 }
+.dark-tiles .leaflet-tile {
+  filter: brightness(0.65) invert(1) contrast(2.8) hue-rotate(200deg) saturate(0.35) !important;
+}
 .leaflet-control-zoom {
   display: none !important;
 }

@@ -14,7 +14,9 @@ import {
   HeatRiskZone, 
   SimulationResult,
   EmergencyIncident,
-  UserLiveLocation
+  UserLiveLocation,
+  MunicipalServiceAsset,
+  MunicipalServiceType
 } from '@/types';
 import { Layers, Crosshair, Navigation, Check } from 'lucide-react';
 
@@ -23,7 +25,7 @@ const DynamicMapInner = dynamic(() => import('./MapInner'), {
   loading: () => (
     <div className="w-full h-full flex flex-col items-center justify-center bg-[#0a0f1e] text-slate-400 gap-3">
       <div className="w-8 h-8 border-2 border-sky-400/30 border-t-sky-400 rounded-full animate-spin"></div>
-      <p className="text-xs font-medium tracking-wide text-slate-400">Loading Gurugram Spatial Canvas…</p>
+      <p className="text-xs font-medium tracking-wide text-slate-400">Loading Spatial Canvas…</p>
     </div>
   ),
 });
@@ -37,6 +39,9 @@ interface DigitalTwinMapProps {
   userLiveLocation: UserLiveLocation | null;
   onTriggerLocateMe: () => void;
   isLocating?: boolean;
+  municipalServices?: MunicipalServiceAsset[];
+  selectedServiceTypes?: Set<MunicipalServiceType>;
+  onSelectMunicipalAsset?: (asset: MunicipalServiceAsset) => void;
   sectors: Zone[];
   hospitals: Hospital[];
   fireStations: FireStation[];
@@ -219,22 +224,28 @@ export default function DigitalTwinMap(props: DigitalTwinMapProps) {
       </div>
 
       {/* 4. BOTTOM-LEFT DISCREET LEGEND */}
-      <div className="absolute bottom-4 left-4 z-[900] bg-[#0f172a]/90 backdrop-blur-xl border border-white/[0.08] px-3 py-1.5 rounded-xl text-[11px] text-slate-300 hidden md:flex items-center gap-3.5 shadow-xl">
+      <div className="absolute bottom-4 left-4 z-[900] bg-[#0f172a]/90 backdrop-blur-xl border border-white/[0.08] px-3 py-1.5 rounded-xl text-[11px] text-slate-300 hidden md:flex items-center gap-3 shadow-xl overflow-x-auto max-w-[calc(100%-80px)]">
         <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Legend</span>
-        <span className="flex items-center gap-1.5">
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-cyan-400"></span> Water
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-amber-400"></span> Power
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-purple-400"></span> Shelter
+        </span>
+        <span className="flex items-center gap-1">
           <span className="w-2 h-2 rounded-full bg-red-500"></span> Hospital
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-orange-500"></span> Fire Stn
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-orange-500"></span> Fire
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-purple-500"></span> Metro
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-blue-500"></span> Police
         </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Park
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3 h-1 bg-amber-400 rounded-full"></span> NH-48
+        <span className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Waste
         </span>
       </div>
     </div>
