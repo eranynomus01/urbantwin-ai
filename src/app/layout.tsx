@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'UrbanTwin AI — Real-Time Urban Digital Twin & Decision Support Platform',
-  description: 'Production-ready urban digital twin for Gurugram, India. Combining real PostGIS GIS data, live OpenAQ & Open-Meteo telemetry, OSRM routing simulation, and Gemini AI planning intelligence.',
-  keywords: ['Urban Digital Twin', 'Gurugram GIS', 'Smart Cities India', 'What-If Urban Simulation', 'AI Urban Planner', 'Disaster & Emergency Response'],
+  title: 'UrbanTwin AI — Next-Gen Urban Digital Twin & Decision Support Platform',
+  description: 'AI-powered urban digital twin decision-support platform for Hisar and Haryana, India. Featuring real GIS spatial data, live environmental telemetry, predictive What-If simulations, and Gemini AI planning intelligence.',
+  keywords: ['Urban Digital Twin', 'Hisar GIS', 'Haryana Smart Cities', 'What-If Urban Simulation', 'AI Urban Planner', 'Disaster & Emergency Response'],
 };
 
 export default function RootLayout({

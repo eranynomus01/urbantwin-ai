@@ -1,20 +1,34 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import Header from '@/components/UI/Header';
-import MobileBottomNav from '@/components/UI/MobileBottomNav';
-import RealTimeTelemetry from '@/components/Panels/RealTimeTelemetry';
-import DigitalTwinMap from '@/components/Map/DigitalTwinMap';
-import ZoneInspector from '@/components/Panels/ZoneInspector';
-import WhatIfSimulator from '@/components/Panels/WhatIfSimulator';
-import EmergencyDispatcher from '@/components/Panels/EmergencyDispatcher';
-import AIAdvisorPanel from '@/components/Panels/AIAdvisorPanel';
-import ScenarioComparison from '@/components/Panels/ScenarioComparison';
+import React, { useState, useEffect, useMemo } from 'react';
+import AppHeader, { AppViewMode } from '@/components/UI/AppHeader';
+import HomeView from '@/components/Views/HomeView';
+import ExploreView from '@/components/Views/ExploreView';
+import ServicesView from '@/components/Views/ServicesView';
+import SimulatorView from '@/components/Views/SimulatorView';
+import EmergencyView from '@/components/Views/EmergencyView';
+import CompareView from '@/components/Views/CompareView';
+import AIPlannerView from '@/components/Views/AIPlannerView';
 import DataTransparencyModal from '@/components/Panels/DataTransparencyModal';
-import ReportGeneratorModal from '@/components/Panels/ReportGeneratorModal';
-import GuidedTourModal from '@/components/Panels/GuidedTourModal';
 
 import { SUPPORTED_CITIES, getActiveCity } from '@/data/cities';
+import { HARYANA_MUNICIPAL_SERVICES } from '@/data/haryanaServices';
+import { calculateHaversineDistance } from '@/lib/routing/osrm';
+
+// Hisar GIS Data (Primary City)
+import { 
+  HISAR_SECTORS, 
+  HISAR_HOSPITALS, 
+  HISAR_FIRE_STATIONS, 
+  HISAR_POLICE_STATIONS, 
+  HISAR_PARKS, 
+  HISAR_TRANSIT_NODES, 
+  HISAR_ROADS, 
+  HISAR_FLOOD_RISK_ZONES, 
+  HISAR_HEAT_RISK_ZONES 
+} from '@/data/hisar';
+
+// Gurugram GIS Data (Secondary / District Data)
 import { GURUGRAM_SECTORS } from '@/data/gurugram/sectors';
 import { GURUGRAM_HOSPITALS } from '@/data/gurugram/hospitals';
 import { GURUGRAM_FIRE_STATIONS } from '@/data/gurugram/fireStations';
@@ -24,121 +38,131 @@ import { GURUGRAM_TRANSIT_NODES } from '@/data/gurugram/transit';
 import { GURUGRAM_ROADS } from '@/data/gurugram/roads';
 import { GURUGRAM_FLOOD_RISK_ZONES } from '@/data/gurugram/floodRiskZones';
 import { GURUGRAM_HEAT_RISK_ZONES } from '@/data/gurugram/heatRiskZones';
-import { runWhatIfSimulation } from '@/lib/simulation/engine';
-import { calculateHaversineDistance } from '@/lib/routing/osrm';
-import { ArrowLeft } from 'lucide-react';
 
-import ServiceSelectorBar from '@/components/UI/ServiceSelectorBar';
-import ServiceActionPanel from '@/components/Panels/ServiceActionPanel';
-import { HARYANA_MUNICIPAL_SERVICES, getServicesByCity } from '@/data/haryanaServices';
 import { 
   City, 
   Zone, 
-  UserRole, 
   SimulationResult, 
-  EmergencyIncident, 
-  RealTimeCityTelemetry,
-  ScenarioItem,
+  RealTimeCityTelemetry, 
+  ScenarioItem, 
   UserLiveLocation,
-  MunicipalServiceType,
   MunicipalServiceAsset
 } from '@/types';
 
 export default function UrbanTwinCommandCenter() {
-  // Application State
-  const [activeCity, setActiveCity] = useState<City>(getActiveCity('gurugram'));
-  const [userRole, setUserRole] = useState<UserRole>('urban_planner');
+  // 1. APPLICATION VIEW STATE (Progressive Disclosure: Starts Clean on 'home')
+  const [activeView, setActiveView] = useState<AppViewMode>('home');
+  const [activeCity, setActiveCity] = useState<City>(getActiveCity('hisar'));
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'map' | 'services' | 'inspector' | 'simulator' | 'emergency' | 'ai_advisor' | 'scenarios'>('services');
+  const [globalSearch, setGlobalSearch] = useState<string>('');
 
-  // Selective Services State
-  const [selectedServiceTypes, setSelectedServiceTypes] = useState<Set<MunicipalServiceType>>(
-    new Set<MunicipalServiceType>([
-      'healthcare',
-      'fire_rescue',
-      'police_safety',
-      'water_drainage',
-      'power_grid',
-      'disaster_shelter',
-      'waste_sanitation',
-      'transit_roads'
-    ])
-  );
+  // 2. GIS ENTITY STATE
+  const [selectedZone, setSelectedZone] = useState<Zone | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<MunicipalServiceAsset | null>(null);
 
-  // GIS Selection & Entities
-  const [selectedZone, setSelectedZone] = useState<Zone | null>(GURUGRAM_SECTORS[0]); // Default DLF Cyber City
-  const [mapCenter, setMapCenter] = useState<[number, number]>(activeCity.center);
-  const [mapZoom, setMapZoom] = useState<number>(activeCity.defaultZoom);
-
-  // Live User GPS
+  // 3. LIVE GPS STATE
   const [userLiveLocation, setUserLiveLocation] = useState<UserLiveLocation | null>(null);
   const [isLocating, setIsLocating] = useState<boolean>(false);
 
-  // Active Simulation & Incidents
+  // 4. SIMULATION & SCENARIO REGISTRY
   const [activeSimulation, setActiveSimulation] = useState<SimulationResult | null>(null);
-  const [activeIncident, setActiveIncident] = useState<EmergencyIncident | null>(null);
   const [savedScenarios, setSavedScenarios] = useState<ScenarioItem[]>([]);
 
-  // Map Click Mode
-  const [mapClickMode, setMapClickMode] = useState<'inspect' | 'simulation_drop' | 'incident_drop'>('inspect');
-  const [droppedCoords, setDroppedCoords] = useState<[number, number] | null>(null);
+  // 5. AI PROMPT BRIDGE (Pass prompt into AI Planner when navigating)
+  const [pendingAIPrompt, setPendingAIPrompt] = useState<string | null>(null);
 
-  // AI Prompt Bridge
-  const [activeAIPrompt, setActiveAIPrompt] = useState<string | null>(null);
-
-  // Modals
+  // 6. MODALS
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [isTourModalOpen, setIsTourModalOpen] = useState(false);
 
-  // Live Telemetry Stream
+  // 7. SYNC WITH URL HASH (allows direct linking: /#explore, /#services, etc.)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hash = window.location.hash.replace('#', '') as AppViewMode;
+      if (['home', 'explore', 'services', 'simulator', 'emergency', 'compare', 'ai_planner'].includes(hash)) {
+        setActiveView(hash);
+      }
+    }
+  }, []);
+
+  const handleSelectView = (view: AppViewMode) => {
+    setActiveView(view);
+    if (typeof window !== 'undefined') {
+      window.location.hash = view === 'home' ? '' : view;
+    }
+  };
+
+  // 8. RESOLVE CITY GIS LAYERS DYNAMICALLY
+  const isHisar = activeCity.id === 'hisar';
+  const currentSectors = useMemo(() => isHisar ? HISAR_SECTORS : GURUGRAM_SECTORS, [isHisar]);
+  const currentHospitals = useMemo(() => isHisar ? HISAR_HOSPITALS : GURUGRAM_HOSPITALS, [isHisar]);
+  const currentFireStations = useMemo(() => isHisar ? HISAR_FIRE_STATIONS : GURUGRAM_FIRE_STATIONS, [isHisar]);
+  const currentPoliceStations = useMemo(() => isHisar ? HISAR_POLICE_STATIONS : GURUGRAM_POLICE_STATIONS, [isHisar]);
+  const currentParks = useMemo(() => isHisar ? HISAR_PARKS : GURUGRAM_PARKS, [isHisar]);
+  const currentTransitNodes = useMemo(() => isHisar ? HISAR_TRANSIT_NODES : GURUGRAM_TRANSIT_NODES, [isHisar]);
+  const currentRoads = useMemo(() => isHisar ? HISAR_ROADS : GURUGRAM_ROADS, [isHisar]);
+  const currentFloodZones = useMemo(() => isHisar ? HISAR_FLOOD_RISK_ZONES : GURUGRAM_FLOOD_RISK_ZONES, [isHisar]);
+  const currentHeatZones = useMemo(() => isHisar ? HISAR_HEAT_RISK_ZONES : GURUGRAM_HEAT_RISK_ZONES, [isHisar]);
+
+  // Municipal services for current active city
+  const cityServices = useMemo(() => {
+    return HARYANA_MUNICIPAL_SERVICES.filter((s) => s.cityId === activeCity.id);
+  }, [activeCity.id]);
+
+  // Set initial selected zone when city changes
+  useEffect(() => {
+    setSelectedZone(currentSectors[0] || null);
+    setSelectedAsset(null);
+  }, [currentSectors]);
+
+  // 9. LIVE TELEMETRY
   const [telemetry, setTelemetry] = useState<RealTimeCityTelemetry>({
-    cityId: 'gurugram',
-    cityName: 'Gurugram',
+    cityId: activeCity.id,
+    cityName: activeCity.name,
     weather: {
-      temperatureC: 32.4,
-      feelsLikeC: 36.1,
-      humidityPct: 62,
+      temperatureC: 34.2,
+      feelsLikeC: 38.4,
+      humidityPct: 48,
       rainfallMmPerHr: 0.0,
-      windSpeedKmh: 12.8,
+      windSpeedKmh: 11.2,
       windDirection: 'NW',
-      conditionText: 'Partly Cloudy / Hazy',
-      uvIndex: 6.2,
+      conditionText: 'Clear / Sunny',
+      uvIndex: 7.1,
       sourceName: 'Open-Meteo High-Resolution Model',
       sourceUrl: 'https://open-meteo.com/',
-      lastUpdated: '18:45 IST',
+      lastUpdated: '17:45 IST',
       isRealTime: true,
     },
     airQuality: {
-      aqi: 178,
-      pm25: 88.4,
-      pm10: 164.2,
-      no2: 42.1,
-      o3: 28.5,
-      so2: 14.2,
-      co: 1.2,
-      category: 'Poor',
-      stationName: 'Sector 51 CAAQMS, Gurugram',
+      aqi: 168,
+      pm25: 78.5,
+      pm10: 152.0,
+      no2: 38.4,
+      o3: 26.2,
+      so2: 12.1,
+      co: 0.9,
+      category: 'Moderate',
+      stationName: `${activeCity.name} CAAQMS Central Station`,
       sourceName: 'CPCB / NAQI Open Data Feed',
       sourceUrl: 'https://cpcb.nic.in/',
-      lastUpdated: '18:45 IST',
+      lastUpdated: '17:45 IST',
       isRealTime: true,
     },
     trafficSummary: {
-      overallIndex: 68,
-      congestedCorridorsCount: 3,
-      avgCitySpeedKmh: 31.4,
-      sourceName: 'GMDA ICCC & OSM Graph',
-      lastUpdated: '18:45 IST',
+      overallIndex: 62,
+      congestedCorridorsCount: 2,
+      avgCitySpeedKmh: 34.8,
+      sourceName: 'GMDA / Smart City ICCC & OSM Graph',
+      lastUpdated: '17:45 IST',
     },
     emergencyStatus: {
-      activeIncidentsCount: 2,
-      avgFireResponseTimeMin: 8.4,
-      avgAmbulanceResponseTimeMin: 9.6,
+      activeIncidentsCount: 1,
+      avgFireResponseTimeMin: 7.2,
+      avgAmbulanceResponseTimeMin: 8.5,
       systemAlertLevel: 'NORMAL',
     },
   });
 
+  // Fetch live weather/AQI telemetry from API route
   useEffect(() => {
     async function loadTelemetry() {
       try {
@@ -156,7 +180,7 @@ export default function UrbanTwinCommandCenter() {
     return () => clearInterval(interval);
   }, [activeCity.id]);
 
-  // Live Location Trigger
+  // 10. REAL-TIME GPS LOCATE ME
   const handleTriggerLocateMe = () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
       alert('Geolocation is not supported by your browser.');
@@ -169,9 +193,9 @@ export default function UrbanTwinCommandCenter() {
         const lng = pos.coords.longitude;
         const accuracyM = pos.coords.accuracy;
 
-        let closestSec = GURUGRAM_SECTORS[0];
+        let closestSec = currentSectors[0];
         let minD = Infinity;
-        GURUGRAM_SECTORS.forEach((s) => {
+        currentSectors.forEach((s) => {
           const d = calculateHaversineDistance([lat, lng], s.center);
           if (d < minD) {
             minD = d;
@@ -179,9 +203,9 @@ export default function UrbanTwinCommandCenter() {
           }
         });
 
-        let nearestH = GURUGRAM_HOSPITALS[0];
+        let nearestH = currentHospitals[0];
         let minHD = Infinity;
-        GURUGRAM_HOSPITALS.forEach((h) => {
+        currentHospitals.forEach((h) => {
           const d = calculateHaversineDistance([lat, lng], h.coordinates);
           if (d < minHD) {
             minHD = d;
@@ -189,9 +213,9 @@ export default function UrbanTwinCommandCenter() {
           }
         });
 
-        let nearestF = GURUGRAM_FIRE_STATIONS[0];
+        let nearestF = currentFireStations[0];
         let minFD = Infinity;
-        GURUGRAM_FIRE_STATIONS.forEach((f) => {
+        currentFireStations.forEach((f) => {
           const d = calculateHaversineDistance([lat, lng], f.coordinates);
           if (d < minFD) {
             minFD = d;
@@ -204,27 +228,15 @@ export default function UrbanTwinCommandCenter() {
           lng,
           accuracyM,
           timestamp: new Date().toLocaleTimeString(),
-          nearestSectorName: closestSec.name,
-          nearestHospitalName: nearestH.name.split('—')[0],
+          nearestSectorName: closestSec?.name || 'Local Sector',
+          nearestHospitalName: nearestH?.name.split('—')[0] || 'Civil Hospital',
           nearestHospitalDistKm: minHD,
-          nearestFireStationName: nearestF.name.split(' ')[0],
+          nearestFireStationName: nearestF?.name.split(' ')[0] || 'Central Fire Stn',
           nearestFireDistKm: minFD,
         };
 
         setUserLiveLocation(userLoc);
-        setMapCenter([lat, lng]);
-        setMapZoom(14.5);
         setIsLocating(false);
-
-        try {
-          const res = await fetch(`/api/environmental?lat=${lat}&lng=${lng}&city_name=My%20Location`);
-          if (res.ok) {
-            const liveData = await res.json();
-            setTelemetry(liveData);
-          }
-        } catch (e) {
-          console.warn('GPS weather fetch error:', e);
-        }
       },
       (err) => {
         console.warn('Geolocation error:', err);
@@ -235,47 +247,20 @@ export default function UrbanTwinCommandCenter() {
     );
   };
 
-  const handleSelectZone = (zone: Zone | null) => {
-    setSelectedZone(zone);
-    if (zone) {
-      setMapCenter(zone.center);
-      setMapZoom(13.8);
-    }
+  // 11. NAVIGATION BRIDGES
+  const handleAskAIWithPrompt = (promptText: string) => {
+    setPendingAIPrompt(promptText);
+    handleSelectView('ai_planner');
   };
 
-  const handleMapClickCoord = (coord: [number, number]) => {
-    if (mapClickMode === 'simulation_drop') {
-      setDroppedCoords(coord);
-      setMapClickMode('inspect');
-      setActiveTab('simulator');
-    } else if (mapClickMode === 'incident_drop') {
-      setDroppedCoords(coord);
-      setMapClickMode('inspect');
-      setActiveTab('emergency');
-    } else {
-      let closest = GURUGRAM_SECTORS[0];
-      let minD = Infinity;
-      GURUGRAM_SECTORS.forEach((s) => {
-        const d = Math.hypot(s.center[0] - coord[0], s.center[1] - coord[1]);
-        if (d < minD) {
-          minD = d;
-          closest = s;
-        }
-      });
-      if (minD < 0.04) {
-        handleSelectZone(closest);
-      }
-    }
+  const handleFocusAssetOnMap = (asset: MunicipalServiceAsset) => {
+    setSelectedAsset(asset);
+    setSelectedZone(null);
+    handleSelectView('explore');
   };
 
-  const handleAskAI = (promptText: string) => {
-    setActiveAIPrompt(promptText);
-    setActiveTab('ai_advisor');
-  };
-
-  const handleStartSimulationInZone = (zone: Zone) => {
-    setDroppedCoords(zone.center);
-    setActiveTab('simulator');
+  const handleSimulateAssetDisruption = (asset: MunicipalServiceAsset) => {
+    handleAskAIWithPrompt(`What is the cascade impact if ${asset.name} in ${activeCity.name} goes offline, and what contingency emergency protocols should be deployed?`);
   };
 
   const handleSaveScenario = (simResult: SimulationResult) => {
@@ -284,338 +269,148 @@ export default function UrbanTwinCommandCenter() {
       name: simResult.scenarioName,
       description: simResult.keyFindings.join(' '),
       simulationType: simResult.simulationType,
-      cityId: 'gurugram',
+      cityId: activeCity.id,
       createdAt: new Date().toLocaleDateString('en-IN'),
       author: 'Urban Planner',
       kpis: {
-        avgEmergencyResponseMin: Math.max(4.0, Math.round((8.4 + simResult.deltaResponseTimeMin) * 10) / 10),
-        healthcareCoveragePct: Math.min(98, Math.round((68.5 + simResult.healthcareCoverageIncreasePct) * 10) / 10),
-        fireCoveragePct: Math.min(98, Math.round((64.2 + simResult.fireCoverageIncreasePct) * 10) / 10),
-        trafficCongestionIndex: Math.max(30, Math.round((68.0 + simResult.trafficDelayIndexDelta) * 10) / 10),
+        avgEmergencyResponseMin: Math.max(4.0, Math.round((7.2 + simResult.deltaResponseTimeMin) * 10) / 10),
+        healthcareCoveragePct: Math.min(98, Math.round((78.5 + simResult.healthcareCoverageIncreasePct) * 10) / 10),
+        fireCoveragePct: Math.min(98, Math.round((74.2 + simResult.fireCoverageIncreasePct) * 10) / 10),
+        trafficCongestionIndex: Math.max(30, Math.round((62.0 + simResult.trafficDelayIndexDelta) * 10) / 10),
         greenSpacePerCapitaSqM: simResult.uhiMitigationC > 0 ? 4.22 : 3.4,
-        floodVulnerabilityScore: 6.8,
-        uhiExtremeAreaPct: simResult.uhiMitigationC > 0 ? 34.0 : 42.0,
-        overallUrbanResilienceScore: Math.min(99, Math.round(62.0 + (simResult.impactScore * 0.25))),
+        floodVulnerabilityScore: 5.8,
+        uhiExtremeAreaPct: simResult.uhiMitigationC > 0 ? 28.0 : 38.0,
+        overallUrbanResilienceScore: Math.min(99, Math.round(68.0 + (simResult.impactScore * 0.25))),
       },
       simulationDelta: simResult,
     };
     setSavedScenarios((prev) => [newScenario, ...prev]);
-    setActiveTab('scenarios');
   };
-
-  const handleTriggerQuickDemo = (demoType: 'nh48_closure' | 'fire_sec65') => {
-    if (demoType === 'nh48_closure') {
-      const result = runWhatIfSimulation('road_closure', {
-        roadId: 'road-nh48-delhi-jaipur-expy',
-        roadName: 'NH-48 (Delhi-Jaipur Expressway)',
-        closureDurationHours: 2,
-      });
-      setActiveSimulation(result);
-      setMapCenter([28.4680, 77.0600]);
-      setMapZoom(12.8);
-      setActiveTab('simulator');
-    } else if (demoType === 'fire_sec65') {
-      const result = runWhatIfSimulation('new_fire_station', {
-        proposedLocation: [28.4110, 77.0650],
-        name: 'Sector 65 Southern Peripheral Fire Station',
-        fireEngines: 4,
-        coverageRadiusKm: 5.5,
-      });
-      setActiveSimulation(result);
-      setMapCenter([28.4110, 77.0650]);
-      setMapZoom(13.2);
-      setActiveTab('simulator');
-    }
-  };
-
-  const handleTourStepAction = (step: number) => {
-    if (step === 1) {
-      handleSelectZone(GURUGRAM_SECTORS[0]);
-      setActiveTab('inspector');
-    } else if (step === 2) {
-      setActiveTab('map');
-    } else if (step === 3) {
-      handleTriggerQuickDemo('nh48_closure');
-    } else if (step === 4) {
-      setActiveTab('emergency');
-    } else if (step === 5) {
-      handleAskAI('Where should Gurugram add a new fire station for maximum coverage?');
-    }
-  };
-
-  const handleToggleService = (srvType: MunicipalServiceType) => {
-    setSelectedServiceTypes((prev) => {
-      const next = new Set(prev);
-      if (next.has(srvType)) {
-        next.delete(srvType);
-      } else {
-        next.add(srvType);
-      }
-      return next;
-    });
-  };
-
-  const handleSelectAllServices = () => {
-    setSelectedServiceTypes(
-      new Set<MunicipalServiceType>([
-        'healthcare',
-        'fire_rescue',
-        'police_safety',
-        'water_drainage',
-        'power_grid',
-        'disaster_shelter',
-        'waste_sanitation',
-        'transit_roads',
-      ])
-    );
-  };
-
-  const handleClearAllServices = () => {
-    setSelectedServiceTypes(new Set<MunicipalServiceType>());
-  };
-
-  const handleFocusMunicipalAsset = (asset: MunicipalServiceAsset) => {
-    setMapCenter(asset.coordinates);
-    setMapZoom(14.5);
-  };
-
-  const handleSimulateDisruption = (asset: MunicipalServiceAsset) => {
-    handleAskAI(`What is the cascade impact if ${asset.name} in ${activeCity.name} goes offline, and what contingency emergency protocols should be deployed?`);
-  };
-
-  const cityServices = React.useMemo(() => {
-    return HARYANA_MUNICIPAL_SERVICES.filter((s) => s.cityId === activeCity.id);
-  }, [activeCity.id]);
-
-  const serviceCounts = React.useMemo(() => {
-    const counts: Record<MunicipalServiceType, number> = {
-      healthcare: cityServices.filter(s => s.serviceType === 'healthcare').length + (activeCity.id === 'gurugram' ? GURUGRAM_HOSPITALS.length : 0),
-      fire_rescue: cityServices.filter(s => s.serviceType === 'fire_rescue').length + (activeCity.id === 'gurugram' ? GURUGRAM_FIRE_STATIONS.length : 0),
-      police_safety: cityServices.filter(s => s.serviceType === 'police_safety').length + (activeCity.id === 'gurugram' ? GURUGRAM_POLICE_STATIONS.length : 0),
-      water_drainage: cityServices.filter(s => s.serviceType === 'water_drainage').length,
-      power_grid: cityServices.filter(s => s.serviceType === 'power_grid').length,
-      disaster_shelter: cityServices.filter(s => s.serviceType === 'disaster_shelter').length,
-      waste_sanitation: cityServices.filter(s => s.serviceType === 'waste_sanitation').length,
-      transit_roads: cityServices.filter(s => s.serviceType === 'transit_roads').length + (activeCity.id === 'gurugram' ? GURUGRAM_TRANSIT_NODES.length : 0),
-    };
-    return counts;
-  }, [cityServices, activeCity.id]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0a0f1e] text-slate-100 overflow-hidden font-sans">
-      {/* 1. HEADER */}
-      <Header
+    <div className="h-screen w-screen flex flex-col bg-[#070b16] text-slate-100 overflow-hidden font-sans select-none">
+      
+      {/* 1. TOP APP HEADER (Persistent across all views) */}
+      <AppHeader
+        activeView={activeView}
+        onSelectView={handleSelectView}
         activeCity={activeCity}
         onSelectCity={(city) => {
           setActiveCity(city);
-          setMapCenter(city.center);
-          setMapZoom(city.defaultZoom);
+          setSelectedZone(null);
+          setSelectedAsset(null);
         }}
-        userRole={userRole}
-        onSelectRole={setUserRole}
         isDarkMode={isDarkMode}
         onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         onOpenDataModal={() => setIsDataModalOpen(true)}
-        onOpenReportModal={() => setIsReportModalOpen(true)}
-        onOpenTourModal={() => setIsTourModalOpen(true)}
-        activeTab={activeTab === 'map' ? 'services' : activeTab}
-        onSelectTab={setActiveTab}
-        onTriggerQuickDemo={handleTriggerQuickDemo}
+        searchQuery={globalSearch}
+        onSearchChange={setGlobalSearch}
       />
 
-      {/* 1B. SELECTIVE SERVICES BAR */}
-      <ServiceSelectorBar
-        selectedServices={selectedServiceTypes}
-        onToggleService={handleToggleService}
-        onSelectAll={handleSelectAllServices}
-        onClearAll={handleClearAllServices}
-        serviceCounts={serviceCounts}
-      />
+      {/* 2. DEDICATED VIEW CANVAS (Progressive Disclosure Architecture) */}
+      <main className="flex-1 flex overflow-hidden relative">
+        
+        {/* VIEW 1: HOME (Clean Dashboard with 6 Large Cards) */}
+        {activeView === 'home' && (
+          <HomeView
+            activeCity={activeCity}
+            onSelectView={handleSelectView}
+            telemetry={telemetry}
+            totalServicesCount={cityServices.length}
+          />
+        )}
 
-      {/* 2. REAL-TIME TELEMETRY TICKER */}
-      <RealTimeTelemetry telemetry={telemetry} />
-
-      {/* 3. MAIN COMMAND CANVAS */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative pb-14 md:pb-0">
-        {/* MAP CANVAS */}
-        <div className={`flex-1 h-full relative ${activeTab !== 'map' ? 'hidden md:block' : 'block w-full'}`}>
-          <DigitalTwinMap
-            center={mapCenter}
-            zoom={mapZoom}
-            isDarkMode={isDarkMode}
+        {/* VIEW 2: EXPLORE CITY (Dedicated Full-Screen Map) */}
+        {activeView === 'explore' && (
+          <ExploreView
+            activeCity={activeCity}
+            sectors={currentSectors}
+            hospitals={currentHospitals}
+            fireStations={currentFireStations}
+            policeStations={currentPoliceStations}
+            parks={currentParks}
+            transitNodes={currentTransitNodes}
+            roads={currentRoads}
+            floodZones={currentFloodZones}
+            heatZones={currentHeatZones}
+            municipalServices={cityServices}
             selectedZone={selectedZone}
-            onSelectZone={handleSelectZone}
+            onSelectZone={setSelectedZone}
+            selectedAsset={selectedAsset}
+            onSelectAsset={setSelectedAsset}
             userLiveLocation={userLiveLocation}
             onTriggerLocateMe={handleTriggerLocateMe}
             isLocating={isLocating}
-            municipalServices={cityServices}
-            selectedServiceTypes={selectedServiceTypes}
-            onSelectMunicipalAsset={handleFocusMunicipalAsset}
-            sectors={GURUGRAM_SECTORS}
-            hospitals={GURUGRAM_HOSPITALS}
-            fireStations={GURUGRAM_FIRE_STATIONS}
-            policeStations={GURUGRAM_POLICE_STATIONS}
-            parks={GURUGRAM_PARKS}
-            transitNodes={GURUGRAM_TRANSIT_NODES}
-            roads={GURUGRAM_ROADS}
-            floodZones={GURUGRAM_FLOOD_RISK_ZONES}
-            heatZones={GURUGRAM_HEAT_RISK_ZONES}
-            activeSimulation={activeSimulation}
-            activeIncident={activeIncident}
-            mapClickMode={mapClickMode}
-            onMapClickCoord={handleMapClickCoord}
+            onSwitchToSimulator={(zone) => {
+              if (zone) setSelectedZone(zone);
+              handleSelectView('simulator');
+            }}
+            onAskAI={handleAskAIWithPrompt}
           />
+        )}
 
-          {/* Mobile Bottom Quick Card when on Map view */}
-          {selectedZone && activeTab === 'map' && (
-            <div className="md:hidden absolute bottom-16 left-3 right-3 z-[1000] bg-[#0f172a]/95 border border-white/[0.1] backdrop-blur-2xl p-3.5 rounded-2xl shadow-2xl flex items-center justify-between text-xs">
-              <div>
-                <span className="text-[10px] font-bold text-sky-400 font-mono uppercase">{selectedZone.sectorNumber}</span>
-                <h4 className="font-extrabold text-slate-100 truncate max-w-[190px]">{selectedZone.name}</h4>
-                <div className="text-[10px] text-slate-400">
-                  Pop: <b>{selectedZone.population.toLocaleString('en-IN')}</b> · AQI: <b>{selectedZone.avgAqi}</b>
-                </div>
-              </div>
-              <button
-                onClick={() => setActiveTab('inspector')}
-                className="btn-primary py-2 px-3 text-xs flex items-center gap-1 shrink-0"
-              >
-                <span>Inspect</span> →
-              </button>
-            </div>
-          )}
-        </div>
+        {/* VIEW 3: SERVICES PORTAL (8 Organized Category Cards) */}
+        {activeView === 'services' && (
+          <ServicesView
+            activeCity={activeCity}
+            services={cityServices}
+            onFocusAssetOnMap={handleFocusAssetOnMap}
+            onSimulateDisruption={handleSimulateAssetDisruption}
+            onAskAI={handleAskAIWithPrompt}
+          />
+        )}
 
-        {/* RIGHT / FULL-SCREEN STUDIO DRAWER */}
-        <div className={`w-full md:w-[420px] lg:w-[460px] h-full bg-[#080d1a]/95 border-l border-white/[0.06] flex flex-col z-30 shadow-2xl backdrop-blur-2xl ${
-          activeTab === 'map' ? 'hidden md:flex' : 'flex'
-        }`}>
-          {/* Mobile Back to Map Header */}
-          <div className="md:hidden flex items-center justify-between p-3.5 border-b border-white/[0.06] bg-[#0f172a]/80">
-            <button
-              onClick={() => setActiveTab('map')}
-              className="flex items-center gap-1.5 text-xs font-bold text-sky-400 bg-white/[0.05] px-3 py-1.5 rounded-xl"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" /> Back to GIS Map
-            </button>
-            <span className="text-xs font-extrabold text-slate-300 uppercase tracking-wider">
-              {activeTab.toUpperCase().replace('_', ' ')}
-            </span>
-          </div>
+        {/* VIEW 4: WHAT-IF SIMULATOR (3-Step Workflow & Results State) */}
+        {activeView === 'simulator' && (
+          <SimulatorView
+            activeCity={activeCity}
+            sectors={currentSectors}
+            roads={currentRoads}
+            onSaveScenario={handleSaveScenario}
+            onAskAI={handleAskAIWithPrompt}
+          />
+        )}
 
-          <div className="flex-1 overflow-hidden">
-            {activeTab === 'services' && (
-              <ServiceActionPanel
-                activeCity={activeCity}
-                services={cityServices}
-                selectedServiceTypes={selectedServiceTypes}
-                onFocusAsset={handleFocusMunicipalAsset}
-                onAskAI={handleAskAI}
-                onSimulateDisruption={handleSimulateDisruption}
-              />
-            )}
+        {/* VIEW 5: EMERGENCY & RISK (4 Hazard Intelligence Cards) */}
+        {activeView === 'emergency' && (
+          <EmergencyView
+            activeCity={activeCity}
+            sectors={currentSectors}
+            hospitals={currentHospitals}
+            fireStations={currentFireStations}
+            policeStations={currentPoliceStations}
+            roads={currentRoads}
+            floodZones={currentFloodZones}
+            heatZones={currentHeatZones}
+            onAskAI={handleAskAIWithPrompt}
+          />
+        )}
 
-            {activeTab === 'inspector' && (
-              <ZoneInspector
-                selectedZone={selectedZone}
-                onClearSelection={() => setSelectedZone(null)}
-                onAskAI={handleAskAI}
-                onStartSimulationInZone={handleStartSimulationInZone}
-                fireStations={GURUGRAM_FIRE_STATIONS}
-                hospitals={GURUGRAM_HOSPITALS}
-              />
-            )}
+        {/* VIEW 6: SCENARIO COMPARE (Proposal A vs B Comparison Table) */}
+        {activeView === 'compare' && (
+          <CompareView
+            activeCity={activeCity}
+            savedScenarios={savedScenarios}
+            onAskAI={handleAskAIWithPrompt}
+          />
+        )}
 
-            {activeTab === 'simulator' && (
-              <WhatIfSimulator
-                roads={GURUGRAM_ROADS}
-                sectors={GURUGRAM_SECTORS}
-                selectedZone={selectedZone}
-                activeSimulation={activeSimulation}
-                onSimulationComplete={setActiveSimulation}
-                onClearSimulation={() => setActiveSimulation(null)}
-                onSaveScenario={handleSaveScenario}
-                onAskAI={handleAskAI}
-                onEnableMapDrop={(mode) => {
-                  setMapClickMode(mode);
-                  setActiveTab('map');
-                }}
-                droppedCoords={droppedCoords}
-              />
-            )}
+        {/* VIEW 7: AI URBAN PLANNER (Conversational Gemini Co-Pilot) */}
+        {activeView === 'ai_planner' && (
+          <AIPlannerView
+            activeCity={activeCity}
+            selectedZone={selectedZone}
+            activeSimulation={activeSimulation}
+            telemetry={telemetry}
+            initialPrompt={pendingAIPrompt}
+          />
+        )}
+      </main>
 
-            {activeTab === 'emergency' && (
-              <EmergencyDispatcher
-                hospitals={GURUGRAM_HOSPITALS}
-                fireStations={GURUGRAM_FIRE_STATIONS}
-                policeStations={GURUGRAM_POLICE_STATIONS}
-                sectors={GURUGRAM_SECTORS}
-                activeIncident={activeIncident}
-                onDispatchIncident={setActiveIncident}
-                onClearIncident={() => setActiveIncident(null)}
-                onEnableMapDrop={(mode) => {
-                  setMapClickMode(mode);
-                  setActiveTab('map');
-                }}
-                onAskAI={handleAskAI}
-                droppedCoords={droppedCoords}
-              />
-            )}
-
-            {activeTab === 'ai_advisor' && (
-              <AIAdvisorPanel
-                selectedZone={selectedZone}
-                activeSimulation={activeSimulation}
-                currentTelemetry={telemetry}
-                activePrompt={activeAIPrompt}
-                onClearActivePrompt={() => setActiveAIPrompt(null)}
-              />
-            )}
-
-            {activeTab === 'scenarios' && (
-              <ScenarioComparison
-                scenarios={savedScenarios}
-                activeSimulation={activeSimulation}
-                onApplyScenario={(scen) => {
-                  if (scen.simulationDelta) {
-                    setActiveSimulation(scen.simulationDelta);
-                  }
-                }}
-                onResetToBaseline={() => {
-                  setActiveSimulation(null);
-                  setActiveIncident(null);
-                }}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 4. MOBILE BOTTOM NAVIGATION */}
-      <MobileBottomNav
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        selectedZoneName={selectedZone?.name}
-      />
-
-      {/* 5. MODALS */}
-      <GuidedTourModal
-        isOpen={isTourModalOpen}
-        onClose={() => setIsTourModalOpen(false)}
-        onSelectStepAction={handleTourStepAction}
-      />
-
+      {/* 3. MODALS */}
       <DataTransparencyModal
         isOpen={isDataModalOpen}
         onClose={() => setIsDataModalOpen(false)}
-      />
-
-      <ReportGeneratorModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-        selectedZone={selectedZone}
-        activeSimulation={activeSimulation}
-        currentTelemetry={telemetry}
       />
     </div>
   );

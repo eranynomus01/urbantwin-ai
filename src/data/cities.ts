@@ -243,7 +243,7 @@ export const SUPPORTED_CITIES: City[] = [
   }
 ];
 
-export const getActiveCity = (id: string = 'gurugram'): City => {
+export const getActiveCity = (id: string = 'hisar'): City => {
   const found = SUPPORTED_CITIES.find(c => c.id === id);
-  return found || SUPPORTED_CITIES[0];
+  return found || SUPPORTED_CITIES.find(c => c.id === 'hisar') || SUPPORTED_CITIES[0];
 };
