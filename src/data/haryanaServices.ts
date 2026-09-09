@@ -843,6 +843,230 @@ export const HARYANA_MUNICIPAL_SERVICES: MunicipalServiceAsset[] = [
     coordinates: [29.9580, 76.8320],
     coverageRadiusKm: 8.0,
     source: 'Kurukshetra Development Board & PHED',
+  },
+
+  // ==========================================================================
+  // 16. JIND
+  // ==========================================================================
+  {
+    id: 'jnd-health-civil',
+    cityId: 'jind',
+    name: 'General Civil Hospital Jind',
+    serviceType: 'healthcare',
+    category: 'District Civil Hospital',
+    status: 'Operational',
+    capacityOrLoad: '300 Beds · Intensive Care & Emergency',
+    phone: '01681-245100',
+    address: 'Safidon Road, Jind',
+    coordinates: [29.3210, 76.3190],
+    coverageRadiusKm: 15.0,
+    source: 'Haryana Health Services',
+  },
+  {
+    id: 'jnd-shelter-eklavya',
+    cityId: 'jind',
+    name: 'Eklavya Stadium Disaster Evacuation Center',
+    serviceType: 'disaster_shelter',
+    category: 'Community Evacuation & Relief Ground',
+    status: 'Standby',
+    capacityOrLoad: 'Capacity: 8,000 Persons',
+    phone: '01681-246200',
+    address: 'Rohtak Road, Jind',
+    coordinates: [29.3110, 76.3260],
+    coverageRadiusKm: 10.0,
+    source: 'DDMA Jind',
+  },
+
+  // ==========================================================================
+  // 17. KAITHAL
+  // ==========================================================================
+  {
+    id: 'kth-health-civil',
+    cityId: 'kaithal',
+    name: 'Civil Hospital Kaithal & Trauma Wing',
+    serviceType: 'healthcare',
+    category: 'District Civil Hospital',
+    status: 'Operational',
+    capacityOrLoad: '250 Beds · Emergency Surgical Wing',
+    phone: '01746-234500',
+    address: 'Ambala Road, Kaithal',
+    coordinates: [29.8050, 76.4080],
+    coverageRadiusKm: 14.0,
+    source: 'Haryana Health Services',
+  },
+  {
+    id: 'kth-fire-central',
+    cityId: 'kaithal',
+    name: 'Kaithal Central Fire Station',
+    serviceType: 'fire_rescue',
+    category: 'Municipal Fire Headquarters',
+    status: 'Operational',
+    capacityOrLoad: '4 Fire Tenders · Grain Mandi Quick Response Unit',
+    phone: '101 / 01746-224101',
+    address: 'Dhand Road, Kaithal',
+    coordinates: [29.7990, 76.3980],
+    coverageRadiusKm: 8.0,
+    source: 'Haryana Fire Services',
+  },
+
+  // ==========================================================================
+  // 18. FATEHABAD
+  // ==========================================================================
+  {
+    id: 'ftb-health-civil',
+    cityId: 'fatehabad',
+    name: 'Civil Hospital Fatehabad & Maternity Center',
+    serviceType: 'healthcare',
+    category: 'District Civil Hospital',
+    status: 'Operational',
+    capacityOrLoad: '200 Beds · Maternal & Emergency Care',
+    phone: '01667-220100',
+    address: 'Sirsa Road, Fatehabad',
+    coordinates: [29.5190, 75.4510],
+    coverageRadiusKm: 14.0,
+    source: 'Haryana Health Services',
+  },
+  {
+    id: 'ftb-power-gorakhpur',
+    cityId: 'fatehabad',
+    name: 'Gorakhpur Nuclear Power Transmission Interconnect Substation',
+    serviceType: 'power_grid',
+    category: 'Critical Energy Grid Substation',
+    status: 'Operational',
+    capacityOrLoad: '400kV · 1,400 MW Interconnect Feeder',
+    phone: '01667-278100',
+    address: 'Gorakhpur Village, Fatehabad',
+    coordinates: [29.5480, 75.5240],
+    coverageRadiusKm: 25.0,
+    source: 'NPCIL & HVPNL',
+  },
+
+  // ==========================================================================
+  // 19. PALWAL
+  // ==========================================================================
+  {
+    id: 'plw-health-civil',
+    cityId: 'palwal',
+    name: 'Civil Hospital Palwal & Emergency Node',
+    serviceType: 'healthcare',
+    category: 'District Civil Hospital',
+    status: 'Operational',
+    capacityOrLoad: '250 Beds · 24x7 Emergency Room',
+    phone: '01275-252000',
+    address: 'Delhi-Mathura Road, Palwal',
+    coordinates: [28.1450, 77.3290],
+    coverageRadiusKm: 12.0,
+    source: 'Haryana Health Services',
+  },
+  {
+    id: 'plw-fire-kmp',
+    cityId: 'palwal',
+    name: 'Palwal KMP Expressway Emergency Fire & Rescue Post',
+    serviceType: 'fire_rescue',
+    category: 'Expressway Hazmat & Rescue Station',
+    status: 'Operational',
+    capacityOrLoad: '4 Heavy Rescue Tenders · Highway Cutters',
+    phone: '101 / 01275-261101',
+    address: 'KMP Expressway Intersect, Palwal',
+    coordinates: [28.1620, 77.3180],
+    coverageRadiusKm: 16.0,
+    source: 'HSIIDC & Haryana Fire',
+  },
+
+  // ==========================================================================
+  // 20. NUH (MEWAT)
+  // ==========================================================================
+  {
+    id: 'nuh-health-medical-college',
+    cityId: 'nuh',
+    name: 'Shaheed Hasan Khan Mewati Govt Medical College & Hospital',
+    serviceType: 'healthcare',
+    category: 'Government Tertiary Medical College',
+    status: 'Operational',
+    capacityOrLoad: '500 Beds · Level-2 Trauma & ICU Wing',
+    phone: '01267-282000',
+    address: 'Nalhar, Nuh (Mewat)',
+    coordinates: [28.0980, 76.9940],
+    coverageRadiusKm: 20.0,
+    source: 'Haryana Medical Education',
+  },
+  {
+    id: 'nuh-water-aravalli',
+    cityId: 'nuh',
+    name: 'Aravalli Rainwater Retention Basin & Pumping Network',
+    serviceType: 'water_drainage',
+    category: 'Water Conservation & Check Dam Grid',
+    status: 'Operational',
+    capacityOrLoad: '40 MGD Water Recharge Capacity',
+    phone: '01267-271000',
+    address: 'Aravalli Foothills Corridor, Nuh',
+    coordinates: [28.1180, 77.0250],
+    coverageRadiusKm: 15.0,
+    source: 'Irrigation & Water Resources Haryana',
+  },
+
+  // ==========================================================================
+  // 21. MAHENDRAGARH / NARNAUL
+  // ==========================================================================
+  {
+    id: 'mah-health-civil',
+    cityId: 'mahendragarh',
+    name: 'Civil Hospital Narnaul & District Emergency Wing',
+    serviceType: 'healthcare',
+    category: 'District Civil Hospital',
+    status: 'Operational',
+    capacityOrLoad: '220 Beds · ICU & Surgical Center',
+    phone: '01282-251000',
+    address: 'Singhana Road, Narnaul, Mahendragarh',
+    coordinates: [28.0460, 76.1040],
+    coverageRadiusKm: 14.0,
+    source: 'Haryana Health Services',
+  },
+  {
+    id: 'mah-power-substation',
+    cityId: 'mahendragarh',
+    name: '220kV Narnaul Mineral Corridor Substation',
+    serviceType: 'power_grid',
+    category: 'Grid Substation & Mining Feeder',
+    status: 'Operational',
+    capacityOrLoad: '220kV · 140 MVA Capacity',
+    phone: '01282-261100',
+    address: 'Rewari-Narnaul Road, Mahendragarh',
+    coordinates: [28.0620, 76.1280],
+    coverageRadiusKm: 16.0,
+    source: 'DHBVN',
+  },
+
+  // ==========================================================================
+  // 22. CHARKHI DADRI
+  // ==========================================================================
+  {
+    id: 'chd-health-civil',
+    cityId: 'charkhi_dadri',
+    name: 'Civil Hospital Charkhi Dadri & Emergency Unit',
+    serviceType: 'healthcare',
+    category: 'District Civil Hospital',
+    status: 'Operational',
+    capacityOrLoad: '180 Beds · Emergency Medical Post',
+    phone: '01250-220000',
+    address: 'Loharu Road, Charkhi Dadri',
+    coordinates: [28.5950, 76.2640],
+    coverageRadiusKm: 12.0,
+    source: 'Haryana Health Services',
+  },
+  {
+    id: 'chd-fire-central',
+    cityId: 'charkhi_dadri',
+    name: 'Charkhi Dadri District Fire Headquarters',
+    serviceType: 'fire_rescue',
+    category: 'Municipal Fire Station',
+    status: 'Operational',
+    capacityOrLoad: '3 Tenders · Industrial & Quarry Response Team',
+    phone: '101 / 01250-221101',
+    address: 'Bhiwani Road, Charkhi Dadri',
+    coordinates: [28.6010, 76.2710],
+    coverageRadiusKm: 10.0,
+    source: 'Haryana Fire Services',
   }
 ];
 

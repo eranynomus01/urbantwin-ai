@@ -125,7 +125,14 @@ VALUES
 ('rewari', 'Rewari', 'Haryana', 'India', 28.1920, 76.6191, 12.8, 'Brass City & Southern Haryana Freight Logistics Junction', 143021, 55.0),
 ('bhiwani', 'Bhiwani', 'Haryana', 'India', 28.7932, 76.1390, 12.8, 'Mini Cuba / Sports Capital & Historic Municipal Hub', 196057, 68.0),
 ('jhajjar', 'Jhajjar / Bahadurgarh', 'Haryana', 'India', 28.6063, 76.6565, 12.8, 'Power Transmission Corridor (Jhajjar Super Thermal Power) & Metro Link', 170426, 72.0),
-('kurukshetra', 'Kurukshetra', 'Haryana', 'India', 29.9695, 76.8783, 12.8, 'Heritage Cultural Center & Northern Irrigation Water Management Hub', 154962, 59.0)
+('kurukshetra', 'Kurukshetra', 'Haryana', 'India', 29.9695, 76.8783, 12.8, 'Heritage Cultural Center & Northern Irrigation Water Management Hub', 154962, 59.0),
+('jind', 'Jind', 'Haryana', 'India', 29.3160, 76.3150, 12.8, 'Heart of Haryana — Central Agro-Rail Transit Junction & Dairy Belt', 167592, 68.0),
+('kaithal', 'Kaithal', 'Haryana', 'India', 29.8015, 76.4030, 12.8, 'Historic Fort City & Northern Grain Mandi Rice Milling Cluster', 144915, 55.0),
+('palwal', 'Palwal', 'Haryana', 'India', 28.1487, 77.3260, 12.8, 'Southern NCR Gateway — KMP & Delhi-Mumbai Expressway Node', 131121, 58.0),
+('nuh', 'Nuh (Mewat)', 'Haryana', 'India', 28.1060, 77.0140, 12.8, 'Southern Aravalli Basin — Delhi-Mumbai Expressway Logistics Corridor', 122500, 50.0),
+('fatehabad', 'Fatehabad', 'Haryana', 'India', 29.5160, 75.4540, 12.8, 'Gorakhpur Nuclear Power Project Zone & Bhakra Canal Irrigation Grid', 119836, 52.0),
+('mahendragarh', 'Mahendragarh / Narnaul', 'Haryana', 'India', 28.0430, 76.1080, 12.8, 'Southern Mineral Belt & Central University Center', 114350, 48.0),
+('charkhi_dadri', 'Charkhi Dadri', 'Haryana', 'India', 28.5920, 76.2670, 12.8, '22nd District of Haryana — Stone Quarrying, Cement & Western Bypass', 98400, 42.0)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     latitude = EXCLUDED.latitude,
