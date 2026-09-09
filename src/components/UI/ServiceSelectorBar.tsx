@@ -9,7 +9,7 @@ import {
   Droplets, 
   Zap, 
   Trash2, 
-  Tent, 
+  Home, 
   Compass,
   CheckCheck,
   X
@@ -81,7 +81,7 @@ export const SERVICES_CONFIG: ServiceConfig[] = [
     id: 'disaster_shelter',
     label: 'Disaster & Flood Shelters',
     shortLabel: 'Shelters',
-    icon: Tent,
+    icon: Home,
     colorClass: 'text-purple-400',
     activeBg: 'bg-purple-500/20 text-purple-200 border-purple-400/40 shadow-purple-500/20',
     borderColor: 'border-purple-500',

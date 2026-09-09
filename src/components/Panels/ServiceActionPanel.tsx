@@ -9,9 +9,6 @@ import {
   Activity, 
   Sparkles, 
   AlertTriangle, 
-  Zap, 
-  Droplets, 
-  Tent, 
   ArrowRight,
   ShieldCheck,
   Search
@@ -28,7 +25,7 @@ interface ServiceActionPanelProps {
 
 export default function ServiceActionPanel({
   activeCity,
-  services,
+  services = [],
   selectedServiceTypes,
   onFocusAsset,
   onAskAI,
@@ -38,9 +35,10 @@ export default function ServiceActionPanel({
   const [activeFilter, setActiveFilter] = useState<string>('all');
 
   // Filter assets based on active selected services in the bar + text search
-  const filteredAssets = services.filter((s) => {
+  const filteredAssets = (services || []).filter((s) => {
+    if (!s) return false;
     // Must belong to an active service type in the selector bar
-    if (!selectedServiceTypes.has(s.serviceType)) return false;
+    if (selectedServiceTypes && !selectedServiceTypes.has(s.serviceType)) return false;
 
     // Optional status filter
     if (activeFilter !== 'all' && s.status !== activeFilter) return false;
