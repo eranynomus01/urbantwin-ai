@@ -139,8 +139,9 @@ interface MapInnerProps {
 function MapRecenter({ center, zoom }: { center: [number, number]; zoom: number }) {
   const map = useMap();
   useEffect(() => {
-    map.flyTo(center, zoom, { duration: 1.2 });
-  }, [center, zoom, map]);
+    if (!map) return;
+    map.flyTo(center, zoom, { duration: 0.6, easeLinearity: 0.25 });
+  }, [center[0], center[1], zoom, map]);
   return null;
 }
 

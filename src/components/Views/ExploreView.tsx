@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   City, 
   Zone, 
@@ -19,6 +19,7 @@ import {
   MunicipalServiceType
 } from '@/types';
 import DigitalTwinMap from '@/components/Map/DigitalTwinMap';
+import { SUPPORTED_CITIES } from '@/data/cities';
 import { 
   Layers, 
   Search, 
@@ -34,6 +35,7 @@ import {
   Check, 
   Sliders,
   ChevronRight,
+  ChevronDown,
   Phone,
   MapPin,
   Flame,
@@ -42,6 +44,7 @@ import {
 
 interface ExploreViewProps {
   activeCity: City;
+  onSelectCity?: (city: City) => void;
   sectors: Zone[];
   hospitals: Hospital[];
   fireStations: FireStation[];
@@ -65,6 +68,7 @@ interface ExploreViewProps {
 
 export default function ExploreView({
   activeCity,
+  onSelectCity,
   sectors,
   hospitals,
   fireStations,
@@ -86,10 +90,17 @@ export default function ExploreView({
   onAskAI,
 }: ExploreViewProps) {
   const [mapCenter, setMapCenter] = useState<[number, number]>(activeCity.center);
-  const [mapZoom, setMapZoom] = useState<number>(activeCity.defaultZoom);
+  const [mapZoom, setMapZoom] = useState<number>(activeCity.defaultZoom || 12.8);
+  const [isCityOpen, setIsCityOpen] = useState<boolean>(false);
   const [isLayersOpen, setIsLayersOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [mapStyle, setMapStyle] = useState<'dark' | 'standard'>('dark');
+
+  // Immediately fly map to new city when activeCity changes
+  useEffect(() => {
+    setMapCenter(activeCity.center);
+    setMapZoom(activeCity.defaultZoom || 12.8);
+  }, [activeCity.id, activeCity.center[0], activeCity.center[1], activeCity.defaultZoom]);
 
   // Active selective service types for the map
   const [selectedServiceTypes, setSelectedServiceTypes] = useState<Set<MunicipalServiceType>>(
@@ -172,6 +183,49 @@ export default function ExploreView({
             </div>
           )}
         </div>
+
+        {/* Quick City Switcher Dropdown on Map */}
+        {onSelectCity && (
+          <div className="relative pointer-events-auto">
+            <button
+              onClick={() => setIsCityOpen(!isCityOpen)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0a1020]/95 backdrop-blur-md border border-cyan-500/30 hover:border-cyan-400 text-xs font-semibold text-cyan-300 shadow-xl transition-all active:scale-95"
+              title="Quickly teleport map to any of the 22 Haryana districts"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{activeCity.name}</span>
+              <ChevronDown size={12} className={`text-slate-400 transition-transform ${isCityOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isCityOpen && (
+              <div className="absolute left-0 top-11 w-64 bg-[#0d1424] border border-white/10 rounded-xl shadow-2xl p-2 max-h-72 overflow-y-auto z-50">
+                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-white/10 mb-1">
+                  Teleport to District (All 22 Haryana)
+                </div>
+                {SUPPORTED_CITIES.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      onSelectCity(c);
+                      setMapCenter(c.center);
+                      setMapZoom(c.defaultZoom || 12.8);
+                      setIsCityOpen(false);
+                    }}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-xs flex items-center justify-between transition-colors ${
+                      c.id === activeCity.id ? 'bg-cyan-500/20 text-cyan-300 font-semibold' : 'text-slate-300 hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-medium">{c.name}</div>
+                      <div className="text-[10px] text-slate-500">{c.totalPopulation?.toLocaleString()} pop</div>
+                    </div>
+                    {c.id === activeCity.id && <span className="text-[10px] text-cyan-400 font-bold">Active</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Action Controls Group */}
         <div className="flex items-center gap-2 pointer-events-auto ml-auto">

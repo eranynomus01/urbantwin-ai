@@ -324,6 +324,7 @@ export default function UrbanTwinCommandCenter() {
         {activeView === 'explore' && (
           <ExploreView
             activeCity={activeCity}
+            onSelectCity={setActiveCity}
             sectors={currentSectors}
             hospitals={currentHospitals}
             fireStations={currentFireStations}
