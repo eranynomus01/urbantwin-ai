@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { City, ScenarioItem } from '@/types';
+import { formatNumber } from '@/lib/utils/format';
 import { 
   BarChart2, 
   Sparkles, 
@@ -189,8 +190,8 @@ export default function CompareView({
                   <Users size={14} className="text-cyan-400" />
                   <span>Population Covered (8-min reach)</span>
                 </td>
-                <td className="py-3 text-slate-300">{proposalA.kpis.populationCovered.toLocaleString()}</td>
-                <td className="py-3 text-white font-bold">{proposalB.kpis.populationCovered.toLocaleString()}</td>
+                <td className="py-3 text-slate-300" suppressHydrationWarning>{formatNumber(proposalA.kpis.populationCovered)}</td>
+                <td className="py-3 text-white font-bold" suppressHydrationWarning>{formatNumber(proposalB.kpis.populationCovered)}</td>
                 <td className="py-3 text-right text-emerald-400 font-bold font-mono">
                   +15,700 (+32.3%) ★
                 </td>

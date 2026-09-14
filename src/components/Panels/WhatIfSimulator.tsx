@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { SimulationType, SimulationResult, Zone, RoadCorridor } from '@/types';
 import { runWhatIfSimulation } from '@/lib/simulation/engine';
+import { formatNumber } from '@/lib/utils/format';
 import { Sliders, Play, Sparkles, MapPin, Save, RotateCcw, TrendingDown, TrendingUp, CheckCircle2 } from 'lucide-react';
 
 interface WhatIfSimulatorProps {
@@ -181,7 +182,7 @@ export default function WhatIfSimulator({
           {simType === 'new_transit_hub' && (
             <div>
               <label className="text-[11px] text-slate-400 font-semibold block mb-2">
-                Daily Capacity: <span className="text-purple-400 font-extrabold">{transitCap.toLocaleString('en-IN')}</span>
+                Daily Capacity: <span className="text-purple-400 font-extrabold" suppressHydrationWarning>{formatNumber(transitCap)}</span>
               </label>
               <input type="range" min={10000} max={120000} step={5000} value={transitCap}
                 onChange={e => setTransitCap(+e.target.value)}
@@ -227,7 +228,7 @@ export default function WhatIfSimulator({
             <div className="grid grid-cols-2 gap-2">
               <div className="metric-card rounded-lg p-2.5">
                 <div className="text-[10px] text-slate-400">Population Served</div>
-                <div className="text-sm font-extrabold text-slate-100">{activeSimulation.affectedPopulation.toLocaleString('en-IN')}</div>
+                <div className="text-sm font-extrabold text-slate-100" suppressHydrationWarning>{formatNumber(activeSimulation.affectedPopulation)}</div>
               </div>
               {activeSimulation.deltaResponseTimeMin !== 0 && (
                 <div className="metric-card rounded-lg p-2.5">

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { City, UserRole } from '@/types';
 import { SUPPORTED_CITIES } from '@/data/cities';
+import { formatNumber } from '@/lib/utils/format';
 import { 
   Map, 
   LayoutGrid, 
@@ -173,7 +174,7 @@ export default function AppHeader({
                     >
                       <div>
                         <div className="font-medium text-slate-200">{c.name}</div>
-                        <div className="text-[10px] text-slate-500">{c.totalPopulation?.toLocaleString()} residents</div>
+                        <div className="text-[10px] text-slate-500" suppressHydrationWarning>{formatNumber(c.totalPopulation)} residents</div>
                       </div>
                       {isSelected && <span className="text-[10px] text-cyan-400 font-bold">Active</span>}
                     </button>

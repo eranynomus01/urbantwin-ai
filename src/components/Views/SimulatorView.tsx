@@ -9,6 +9,7 @@ import {
   SimulationResult 
 } from '@/types';
 import { runWhatIfSimulation } from '@/lib/simulation/engine';
+import { formatNumber } from '@/lib/utils/format';
 import { 
   Flame, 
   HeartPulse, 
@@ -174,8 +175,8 @@ export default function SimulatorView({
       } else if (selectedScenario === 'new_hospital') {
         const hSec = sectors.find(s => s.id === hospitalSector) || sectors[0];
         result = runWhatIfSimulation('new_hospital', {
-          proposedLocation: hSec.center,
-          name: `${hSec.name} Multi-Speciality Civil Medical Center`,
+          proposedLocation: hSec?.center || targetCoord,
+          name: `${hSec?.name || 'Sector'} Multi-Speciality Civil Medical Center`,
           beds: hospitalBeds,
           hasEmergencyService: true,
           coverageRadiusKm: hospitalRadiusKm,
@@ -190,16 +191,16 @@ export default function SimulatorView({
       } else if (selectedScenario === 'new_park') {
         const pSec = sectors.find(s => s.id === parkSector) || sectors[0];
         result = runWhatIfSimulation('new_park', {
-          proposedLocation: pSec.center,
-          name: `${pSec.name} Biodiversity & Urban Cooling Forest`,
+          proposedLocation: pSec?.center || targetCoord,
+          name: `${pSec?.name || 'Sector'} Biodiversity & Urban Cooling Forest`,
           areaSqKm: parkAreaSqKm,
           treeCanopyCoverPct: 80,
         });
       } else if (selectedScenario === 'new_transit_hub') {
         const tSec = sectors.find(s => s.id === transitSector) || sectors[0];
         result = runWhatIfSimulation('new_transit_hub', {
-          proposedLocation: tSec.center,
-          name: `${tSec.name} Multi-Modal Transit Hub`,
+          proposedLocation: tSec?.center || targetCoord,
+          name: `${tSec?.name || 'Sector'} Multi-Modal Transit Hub`,
           dailyCommuterCapacity: transitCapacity,
           transitType: 'integrated_bus_rapid',
         });
@@ -601,8 +602,8 @@ export default function SimulatorView({
                   <span>Population Covered</span>
                   <Users size={14} className="text-cyan-400" />
                 </div>
-                <div className="text-2xl font-black text-white">
-                  {simulationResult.affectedPopulation.toLocaleString()}
+                <div className="text-2xl font-black text-white" suppressHydrationWarning>
+                  {formatNumber(simulationResult.affectedPopulation)}
                 </div>
                 <div className="flex items-center gap-1 text-xs text-emerald-400 font-bold mt-1">
                   <TrendingUp size={12} />

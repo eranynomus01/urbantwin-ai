@@ -76,12 +76,20 @@ export default function UrbanTwinCommandCenter() {
 
   // 7. SYNC WITH URL HASH (allows direct linking: /#explore, /#services, etc.)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const hash = window.location.hash.replace('#', '') as AppViewMode;
-      if (['home', 'explore', 'services', 'simulator', 'emergency', 'compare', 'ai_planner'].includes(hash)) {
-        setActiveView(hash);
+    const syncHash = () => {
+      if (typeof window !== 'undefined') {
+        const hash = window.location.hash.replace('#', '') as AppViewMode;
+        if (['home', 'explore', 'services', 'simulator', 'emergency', 'compare', 'ai_planner'].includes(hash)) {
+          setActiveView(hash);
+        } else if (!window.location.hash || window.location.hash === '#') {
+          setActiveView('home');
+        }
       }
-    }
+    };
+
+    syncHash();
+    window.addEventListener('hashchange', syncHash);
+    return () => window.removeEventListener('hashchange', syncHash);
   }, []);
 
   const handleSelectView = (view: AppViewMode) => {

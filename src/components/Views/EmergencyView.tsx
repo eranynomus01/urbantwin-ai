@@ -14,6 +14,7 @@ import {
   IncidentType
 } from '@/types';
 import { calculateRoute, calculateHaversineDistance } from '@/lib/routing/osrm';
+import { formatNumber } from '@/lib/utils/format';
 import { 
   Flame, 
   CloudRain, 
@@ -320,7 +321,7 @@ export default function EmergencyView({
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
                         <div>Water Depth Est: <b className="text-white">{fz.depthEstimateM}m</b></div>
-                        <div>Affected Pop: <b className="text-white">{fz.affectedPopulation.toLocaleString()}</b></div>
+                        <div>Affected Pop: <b className="text-white" suppressHydrationWarning>{formatNumber(fz.affectedPopulation)}</b></div>
                       </div>
                       <div className="text-[11px] text-slate-400">
                         <b>Critical Facilities at Risk:</b> {fz.criticalFacilitiesAtRisk.join(', ')}

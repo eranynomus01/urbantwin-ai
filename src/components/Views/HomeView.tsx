@@ -3,6 +3,7 @@
 import React from 'react';
 import { City, RealTimeCityTelemetry } from '@/types';
 import { AppViewMode } from '@/components/UI/AppHeader';
+import { formatNumber } from '@/lib/utils/format';
 import { 
   Map, 
   LayoutGrid, 
@@ -141,7 +142,7 @@ export default function HomeView({
           <div className="flex items-center gap-1.5">
             <Building2 size={13} className="text-cyan-400" />
             <span className="font-semibold text-white">{activeCity.name}</span>
-            <span className="text-slate-500">({activeCity.totalPopulation?.toLocaleString()} pop)</span>
+            <span className="text-slate-500" suppressHydrationWarning>({formatNumber(activeCity.totalPopulation)} pop)</span>
           </div>
           <span className="text-slate-600 hidden sm:inline">|</span>
           <div className="flex items-center gap-1.5">

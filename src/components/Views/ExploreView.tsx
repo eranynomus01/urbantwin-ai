@@ -20,6 +20,7 @@ import {
 } from '@/types';
 import DigitalTwinMap from '@/components/Map/DigitalTwinMap';
 import { SUPPORTED_CITIES } from '@/data/cities';
+import { formatNumber } from '@/lib/utils/format';
 import { 
   Layers, 
   Search, 
@@ -217,7 +218,7 @@ export default function ExploreView({
                   >
                     <div>
                       <div className="font-medium">{c.name}</div>
-                      <div className="text-[10px] text-slate-500">{c.totalPopulation?.toLocaleString()} pop</div>
+                      <div className="text-[10px] text-slate-500" suppressHydrationWarning>{formatNumber(c.totalPopulation)} pop</div>
                     </div>
                     {c.id === activeCity.id && <span className="text-[10px] text-cyan-400 font-bold">Active</span>}
                   </button>
@@ -415,7 +416,7 @@ export default function ExploreView({
                 <div className="grid grid-cols-2 gap-2">
                   <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
                     <span className="text-[10px] text-slate-400 block uppercase">Population</span>
-                    <span className="text-sm font-bold text-white">{selectedZone.population.toLocaleString()}</span>
+                    <span className="text-sm font-bold text-white" suppressHydrationWarning>{formatNumber(selectedZone.population)}</span>
                   </div>
                   <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5">
                     <span className="text-[10px] text-slate-400 block uppercase">Density</span>
