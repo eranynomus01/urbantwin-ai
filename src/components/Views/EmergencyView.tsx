@@ -9,10 +9,38 @@ import {
   PoliceStation, 
   FloodRiskZone, 
   HeatRiskZone, 
-  RoadCorridor,
-  EmergencyIncident,
-  IncidentType
+  RoadCorridor
 } from '@/types';
+
+type IncidentType = 'fire' | 'medical' | 'road_accident' | 'flash_flood' | 'structural_hazard';
+
+interface LocalEmergencyIncident {
+  id: string;
+  type: IncidentType;
+  coordinates: [number, number];
+  sectorId: string;
+  sectorName: string;
+  severity: 'Critical' | 'High' | 'Moderate';
+  timestamp: string;
+  reportedAt: string;
+  nearestFireStation: {
+    id: string;
+    name: string;
+    distanceKm: number;
+    estimatedArrivalTimeMinutes: number;
+    coordinates: [number, number];
+  };
+  nearestHospital: {
+    id: string;
+    name: string;
+    distanceKm: number;
+    estimatedArrivalTimeMinutes: number;
+    coordinates: [number, number];
+  };
+  recommendedEvacuationRoute?: [number, number][];
+  affectedPopulationEstimate?: number;
+  activeStatus: string;
+}
 import { calculateRoute, calculateHaversineDistance } from '@/lib/routing/osrm';
 import { formatNumber } from '@/lib/utils/format';
 import { 
@@ -60,7 +88,7 @@ export default function EmergencyView({
   onAskAI,
 }: EmergencyViewProps) {
   const [selectedRisk, setSelectedRisk] = useState<RiskCategory | null>(null);
-  const [activeIncident, setActiveIncident] = useState<EmergencyIncident | null>(null);
+  const [activeIncident, setActiveIncident] = useState<LocalEmergencyIncident | null>(null);
   const [isDispatching, setIsDispatching] = useState(false);
 
   // Dispatch simulation handler
@@ -103,7 +131,7 @@ export default function EmergencyView({
     // Calculate OSRM route
     const route = await calculateRoute(nearestFS.coordinates, coord);
 
-    const incident: EmergencyIncident = {
+    const incident: LocalEmergencyIncident = {
       id: `inc-${Date.now()}`,
       type,
       coordinates: coord,
@@ -320,11 +348,11 @@ export default function EmergencyView({
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
-                        <div>Water Depth Est: <b className="text-white">{fz.depthEstimateM}m</b></div>
-                        <div>Affected Pop: <b className="text-white" suppressHydrationWarning>{formatNumber(fz.affectedPopulation)}</b></div>
+                        <div>Water Depth Est: <b className="text-white">{(fz as any).depthEstimateM ?? fz.historicalWaterloggingDepthCm / 100}m</b></div>
+                        <div>Affected Pop: <b className="text-white" suppressHydrationWarning>{formatNumber((fz as any).affectedPopulation ?? 0)}</b></div>
                       </div>
                       <div className="text-[11px] text-slate-400">
-                        <b>Critical Facilities at Risk:</b> {fz.criticalFacilitiesAtRisk.join(', ')}
+                        <b>Critical Facilities at Risk:</b> {((fz as any).criticalFacilitiesAtRisk ?? fz.primaryCauses ?? []).join(', ')}
                       </div>
                     </div>
                   ))}
@@ -354,7 +382,7 @@ export default function EmergencyView({
                     <div key={fs.id} className="p-4 rounded-xl bg-black/30 border border-white/5 space-y-2 text-xs">
                       <div className="flex justify-between items-start">
                         <span className="font-bold text-white">{fs.name}</span>
-                        <span className="text-emerald-400 font-bold">{fs.status}</span>
+                        <span className="text-emerald-400 font-bold">{(fs as any).status ?? 'Operational'}</span>
                       </div>
                       <p className="text-slate-400 text-[11px]">{fs.address}</p>
                       <div className="flex justify-between text-[11px] text-slate-300 pt-1 border-t border-white/5">
@@ -390,12 +418,12 @@ export default function EmergencyView({
                       <div className="flex justify-between items-start">
                         <span className="font-bold text-white">{hz.name}</span>
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/20 text-rose-300">
-                          {hz.intensity}
+                          {(hz as any).intensity ?? hz.riskLevel}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
                         <div>Surface Delta: <b className="text-rose-400">+{hz.surfaceTempDeltaC}°C</b></div>
-                        <div>Tree Canopy: <b className="text-white">{hz.treeCanopyCoverPct}%</b></div>
+                        <div>Tree Canopy: <b className="text-white">{(hz as any).treeCanopyCoverPct ?? Math.round(100 - hz.vegetationDeficitPct)}%</b></div>
                       </div>
                       <div className="text-[11px] text-slate-400">
                         <b>Intervention:</b> {hz.recommendedInterventions[0]}

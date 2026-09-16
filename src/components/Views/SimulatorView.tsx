@@ -177,7 +177,8 @@ export default function SimulatorView({
         result = runWhatIfSimulation('new_hospital', {
           proposedLocation: hSec?.center || targetCoord,
           name: `${hSec?.name || 'Sector'} Multi-Speciality Civil Medical Center`,
-          beds: hospitalBeds,
+          targetBeds: hospitalBeds,
+          icuBeds: Math.round(hospitalBeds * 0.22),
           hasEmergencyService: true,
           coverageRadiusKm: hospitalRadiusKm,
         });
@@ -209,7 +210,6 @@ export default function SimulatorView({
         result = {
           simulationType: 'new_park',
           scenarioName: `${activeCity.name} Climate Resilience & Stress Test`,
-          proposedFacilityCoordinates: targetCoord,
           affectedZoneIds: sectors.slice(0, 3).map(s => s.id),
           affectedPopulation: 68000,
           deltaResponseTimeMin: -1.8,
@@ -217,14 +217,19 @@ export default function SimulatorView({
           fireCoverageIncreasePct: 18.2,
           trafficDelayIndexDelta: -8.4,
           uhiMitigationC: 1.6,
+          transitCatchmentGain: 0,
           impactScore: 84,
           keyFindings: [
             `Simulated high-stress test over ${activeCity.name} core infrastructure.`,
             `Mitigation protocols absorb 78% of simulated hydrological and thermal loads.`,
             `Key urban arterial routes remain 100% accessible to emergency response units.`
           ],
-          aiRecommendationSummary: `Based on the simulation, this intervention provides the strongest improvement in urban resilience because it decouples arterial traffic from emergency corridors and expands civic catchment.`,
-          simulatedDate: new Date().toLocaleDateString('en-IN')
+          aiExecutiveSummary: `Based on the simulation, this intervention provides the strongest improvement in urban resilience because it decouples arterial traffic from emergency corridors and expands civic catchment.`,
+          calculationBreakdown: [
+            { metric: 'Urban Resilience Score', baseline: '68/100', simulated: '84/100', delta: '+16 points', direction: 'positive' },
+            { metric: 'Thermal & Flood Stress Absorbed', baseline: '0%', simulated: '78%', delta: '+78%', direction: 'positive' },
+            { metric: 'Emergency Route Accessibility', baseline: '85%', simulated: '100%', delta: '+15%', direction: 'positive' },
+          ],
         };
       }
 
@@ -634,7 +639,7 @@ export default function SimulatorView({
                   24.2 km²
                 </div>
                 <div className="text-xs text-slate-400 mt-1">
-                  {simulationResult.affectedZoneIds.length} sectors impacted
+                  {simulationResult.affectedZoneIds?.length ?? 0} sectors impacted
                 </div>
               </div>
 
@@ -662,7 +667,7 @@ export default function SimulatorView({
               </div>
 
               <p className="text-xs md:text-sm text-slate-200 leading-relaxed">
-                {simulationResult.aiRecommendationSummary}
+              {simulationResult.aiExecutiveSummary}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-xs">

@@ -26,7 +26,9 @@ import {
   HeatRiskZone, 
   SimulationResult,
   EmergencyIncident,
-  UserLiveLocation
+  UserLiveLocation,
+  MunicipalServiceAsset,
+  MunicipalServiceType
 } from '@/types';
 
 // Fix default Leaflet icon paths

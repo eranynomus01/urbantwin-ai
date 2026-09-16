@@ -23,7 +23,7 @@ export interface Zone {
   cityId: string;
   name: string;
   sectorNumber: string;
-  zoneType: 'commercial' | 'residential' | 'industrial' | 'mixed' | 'special_economic_zone' | 'recreational';
+  zoneType: 'commercial' | 'residential' | 'industrial' | 'mixed' | 'special_economic_zone' | 'recreational' | 'institutional';
   areaSqKm: number;
   population: number;
   populationDensity: number; // persons per sq km
@@ -48,9 +48,15 @@ export interface Hospital {
   cityId: string;
   name: string;
   hospitalType: 'Trauma Center & Multispeciality' | 'Super Speciality' | 'Civil General Hospital' | 'Community Health Center';
+  type?: string; // optional alias used in some data files
   totalBeds: number;
+  beds?: number; // optional alias used in some data files
   icuBeds: number;
   emergencyAvailable: boolean;
+  hasEmergencyService?: boolean;
+  hasTraumaCenter?: boolean;
+  hasBurnUnit?: boolean;
+  occupancyRate?: number;
   ambulanceCount: number;
   phone: string;
   address: string;
@@ -65,12 +71,14 @@ export interface FireStation {
   name: string;
   fireEngines: number;
   hydrantSupport: boolean;
+  hydraulicPlatforms?: number;
   personnelCount: number;
   phone: string;
   address: string;
   coverageRadiusKm: number;
   responseSpeedKmh: number;
   coordinates: [number, number]; // [lat, lng]
+  status?: string;
   source: string;
 }
 
@@ -78,6 +86,7 @@ export interface PoliceStation {
   id: string;
   cityId: string;
   name: string;
+  type?: string;
   patrolVehicles: number;
   jurisdictionRadiusKm: number;
   phone: string;
@@ -101,6 +110,7 @@ export interface Park {
   cityId: string;
   name: string;
   areaAcres: number;
+  areaSqKm?: number; // optional alias used in some data files
   canopyCoveragePct: number;
   coolingRadiusM: number; // Urban Heat mitigation radius
   uhiReductionC: number;  // Micro-climate temperature drop
@@ -130,37 +140,50 @@ export interface RoadCorridor {
   lengthKm: number;
   coordinates: [number, number][]; // LineString
   isClosed?: boolean;
-  congestionLevel: 'Low' | 'Moderate' | 'Heavy' | 'Standstill';
-  avgSpeedKmh: number;
-  source: string;
+  congestionLevel?: 'Low' | 'Moderate' | 'Heavy' | 'Standstill' | 'Severe';
+  avgSpeedKmh?: number;
+  source?: string;
+  type?: string;
+  speedLimitKmh?: number;
+  currentCongestionLevel?: string;
+  averageSpeedKmh?: number;
+  criticalityScore?: number;
 }
 
 export interface FloodRiskZone {
   id: string;
-  cityId: string;
+  cityId?: string;
   name: string;
-  riskLevel: 'Low' | 'Medium' | 'High' | 'Critical';
-  elevationMeters: number;
-  historicalWaterloggingDepthCm: number;
-  drainageCorridor: string;
-  drainCapacityAdequacyPct: number;
+  riskLevel: 'Low' | 'Medium' | 'High' | 'Critical' | 'Moderate';
+  elevationMeters?: number;
+  historicalWaterloggingDepthCm?: number;
+  drainageCorridor?: string;
+  drainCapacityAdequacyPct?: number;
   coordinates: [number, number][]; // Polygon
-  center: [number, number];
-  primaryCauses: string[];
+  center?: [number, number];
+  primaryCauses?: string[];
+  depthEstimateM?: number;
+  drainageCapacityScore?: number;
+  affectedPopulation?: number;
+  criticalFacilitiesAtRisk?: string[];
+  historicalFloodingEvents?: string[];
 }
 
 export interface HeatRiskZone {
   id: string;
-  cityId: string;
+  cityId?: string;
   name: string;
-  riskLevel: 'Low' | 'Medium' | 'High' | 'Extreme';
+  riskLevel?: 'Low' | 'Medium' | 'High' | 'Extreme' | 'Moderate';
+  intensity?: string;
   surfaceTempDeltaC: number;
-  vegetationDeficitPct: number;
+  vegetationDeficitPct?: number;
   imperviousSurfacePct: number;
   vulnerablePopulation: number;
-  center: [number, number];
+  center?: [number, number];
   coordinates: [number, number][];
   recommendedInterventions: string[];
+  treeCanopyCoverPct?: number;
+  mitigationPriority?: string;
 }
 
 export type MunicipalServiceType = 
@@ -307,7 +330,7 @@ export interface RoadClosureParams {
   roadName: string;
   closureDurationHours: number;
   closureReason?: string;
-  detourCorridors: string[];
+  detourCorridors?: string[];
 }
 
 export interface NewHospitalParams {
@@ -351,6 +374,7 @@ export interface SimulationResult {
   healthcareCoverageIncreasePct: number;
   fireCoverageIncreasePct: number;
   newCoveragePolygon?: [number, number][];
+  affectedZoneIds?: string[];
   affectedRoadIds?: string[];
   detourRouteCoordinates?: [number, number][];
   keyFindings: string[];
