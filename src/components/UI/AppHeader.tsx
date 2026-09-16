@@ -105,17 +105,17 @@ export default function AppHeader({
         </div>
 
         {/* CENTER: DESKTOP NAVIGATION TABS */}
-        <nav className="hidden lg:flex items-center gap-1">
+        <nav className="hidden lg:flex items-center gap-1.5">
           <button
             onClick={() => onSelectView('home')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[13px] font-semibold transition-all ${
               activeView === 'home'
-                ? 'bg-white/10 text-white shadow-inner border border-white/20'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/25'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]'
             }`}
           >
-            <Home size={13} />
-            Home
+            <Home size={14} className={activeView === 'home' ? 'text-cyan-400' : 'text-slate-400'} />
+            <span>Home</span>
           </button>
 
           {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
@@ -124,13 +124,13 @@ export default function AppHeader({
               <button
                 key={id}
                 onClick={() => onSelectView(id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[13px] font-medium transition-all ${
                   isCurrent
-                    ? 'bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 shadow-sm shadow-cyan-500/10'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/25'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]'
                 }`}
               >
-                <Icon size={13} className={isCurrent ? 'text-cyan-400' : 'text-slate-400'} />
+                <Icon size={14} className={isCurrent ? 'text-cyan-400' : 'text-slate-400'} />
                 <span>{label}</span>
               </button>
             );
