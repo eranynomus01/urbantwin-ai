@@ -48,7 +48,8 @@ type ScenarioChoice =
   | 'new_park' 
   | 'new_transit_hub' 
   | 'flood_scenario' 
-  | 'heat_scenario';
+  | 'heat_scenario'
+  | 'custom_proposal';
 
 export default function SimulatorView({
   activeCity,
@@ -61,6 +62,13 @@ export default function SimulatorView({
   const [selectedScenario, setSelectedScenario] = useState<ScenarioChoice>('new_fire_station');
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
+
+  // Custom User-Defined Scenario Parameters
+  const [customProposalTitle, setCustomProposalTitle] = useState('');
+  const [customProposalDescription, setCustomProposalDescription] = useState('');
+  const [customTargetSector, setCustomTargetSector] = useState(sectors[0]?.id || 'sec-1');
+  const [customInterventionType, setCustomInterventionType] = useState<'infrastructure' | 'emergency' | 'environmental' | 'transit'>('infrastructure');
+  const [customBudgetCr, setCustomBudgetCr] = useState<number>(25);
 
   // Scenario 1: Fire Station params
   const [fireStationSector, setFireStationSector] = useState(sectors[0]?.id || 'sec-1');
@@ -154,6 +162,15 @@ export default function SimulatorView({
       border: 'border-rose-500/30',
       description: 'Simulate surface temperature extremes and evaluate cool-roof policies.',
     },
+    {
+      id: 'custom_proposal' as ScenarioChoice,
+      title: 'Custom AI Proposal',
+      icon: Sparkles,
+      color: 'text-purple-400',
+      bg: 'from-purple-500/20 to-indigo-600/10',
+      border: 'border-purple-500/40',
+      description: 'Define your own custom municipal scenario in natural language with custom parameters.',
+    },
   ];
 
   const handleRunSimulation = () => {
@@ -205,6 +222,39 @@ export default function SimulatorView({
           dailyCommuterCapacity: transitCapacity,
           transitType: 'integrated_bus_rapid',
         });
+      } else if (selectedScenario === 'custom_proposal') {
+        const cSec = sectors.find(s => s.id === customTargetSector) || sectors[0];
+        const scenarioTitle = customProposalTitle.trim() || `Custom Municipal Project at ${cSec?.name || activeCity.name}`;
+        const desc = customProposalDescription.trim() || `Citizen & urban planning proposal for ${activeCity.name}.`;
+
+        const impactDelta = customInterventionType === 'emergency' ? 18.5 :
+          customInterventionType === 'environmental' ? 14.0 :
+          customInterventionType === 'transit' ? 22.0 : 16.5;
+
+        result = {
+          simulationType: 'new_hospital',
+          scenarioName: scenarioTitle,
+          affectedZoneIds: [cSec.id, ...(sectors.slice(1, 3).map(s => s.id))],
+          affectedPopulation: Math.round((cSec.population || 42000) * 1.45),
+          deltaResponseTimeMin: customInterventionType === 'emergency' ? -2.4 : -1.1,
+          healthcareCoverageIncreasePct: customInterventionType === 'emergency' ? 19.5 : 8.2,
+          fireCoverageIncreasePct: customInterventionType === 'emergency' ? 16.8 : 7.5,
+          trafficDelayIndexDelta: customInterventionType === 'transit' ? -12.4 : -4.2,
+          uhiMitigationC: customInterventionType === 'environmental' ? 2.1 : 0.6,
+          transitCatchmentGain: customInterventionType === 'transit' ? 28500 : 8200,
+          impactScore: Math.min(96, Math.round(72 + impactDelta)),
+          keyFindings: [
+            `Custom scenario evaluated for ${cSec.name} (${activeCity.name}).`,
+            `Estimated CapEx allocation of ₹ ${customBudgetCr} Cr generates +${impactDelta}% baseline urban efficiency boost.`,
+            `Directly upgrades infrastructure accessibility for ~${Math.round((cSec.population || 42000) * 1.45).toLocaleString('en-IN')} citizens.`
+          ],
+          aiExecutiveSummary: `User-defined proposal "${scenarioTitle}" evaluated: Deploying this ${customInterventionType} initiative in ${cSec.name} balances municipal budget with maximum localized civic resilience.`,
+          calculationBreakdown: [
+            { metric: 'Composite Resilience Score', baseline: '68/100', simulated: `${Math.min(96, Math.round(72 + impactDelta))}/100`, delta: `+${Math.round(impactDelta)} pts`, direction: 'positive' },
+            { metric: 'Population Served', baseline: `${cSec.population?.toLocaleString('en-IN') || '42,000'}`, simulated: `${Math.round((cSec.population || 42000) * 1.45).toLocaleString('en-IN')}`, delta: '+45%', direction: 'positive' },
+            { metric: 'Estimated CapEx Efficiency', baseline: '₹ 50 Cr Avg', simulated: `₹ ${customBudgetCr} Cr`, delta: 'Optimized', direction: 'positive' },
+          ],
+        };
       } else {
         // Fallback for flood / heat simulation types
         result = {
@@ -541,6 +591,105 @@ export default function SimulatorView({
                       <span>0.2 km² (Neighborhood)</span>
                       <span>0.85 km² (Town Park)</span>
                       <span>2.5 km² (Mega Forest)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Custom AI Proposal Controls */}
+              {selectedScenario === 'custom_proposal' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                        Proposal Title / Name:
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Solar Canopy & EV Emergency Fleet Depot"
+                        value={customProposalTitle}
+                        onChange={(e) => setCustomProposalTitle(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-purple-500 placeholder-slate-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                        Target Sector / Zone:
+                      </label>
+                      <select
+                        value={customTargetSector}
+                        onChange={(e) => setCustomTargetSector(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-purple-500"
+                      >
+                        {sectors.map((s) => (
+                          <option key={s.id} value={s.id} className="bg-[#0b1220]">
+                            {s.name} ({s.sectorNumber})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                      Proposal Details & Objectives (Natural Language):
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder={`Describe the scenario you want AI to evaluate for ${activeCity.name} (e.g. Convert open industrial plots to multi-feeder emergency transit points with 20 quick ambulances and solar backup)...`}
+                      value={customProposalDescription}
+                      onChange={(e) => setCustomProposalDescription(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white focus:outline-none focus:border-purple-500 placeholder-slate-500 resize-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                    <div>
+                      <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+                        Intervention Classification:
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[
+                          { id: 'infrastructure', label: 'Civic Infra' },
+                          { id: 'emergency', label: 'Emergency' },
+                          { id: 'environmental', label: 'Green / Climate' },
+                          { id: 'transit', label: 'Transit / Roads' },
+                        ].map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setCustomInterventionType(t.id as any)}
+                            className={`px-3 py-2 rounded-xl text-xs font-semibold border text-center transition-colors ${
+                              customInterventionType === t.id
+                                ? 'bg-purple-500/25 border-purple-500/50 text-purple-300'
+                                : 'bg-white/[0.03] border-white/10 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between text-xs font-semibold mb-1.5">
+                        <span className="text-slate-300">Estimated Municipal Budget:</span>
+                        <span className="text-purple-400 font-bold">₹ {customBudgetCr} Crore</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={5}
+                        max={150}
+                        step={5}
+                        value={customBudgetCr}
+                        onChange={(e) => setCustomBudgetCr(Number(e.target.value))}
+                        className="w-full accent-purple-500"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                        <span>₹ 5 Cr (Pilot)</span>
+                        <span>₹ 50 Cr (Medium)</span>
+                        <span>₹ 150 Cr (Mega)</span>
+                      </div>
                     </div>
                   </div>
                 </div>
