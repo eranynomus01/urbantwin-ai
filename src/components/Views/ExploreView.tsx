@@ -43,6 +43,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 
+import { calculateRoute, calculateHaversineDistance } from '@/lib/routing/osrm';
+
 interface ExploreViewProps {
   activeCity: City;
   onSelectCity?: (city: City) => void;
@@ -97,11 +99,155 @@ export default function ExploreView({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [mapStyle, setMapStyle] = useState<'dark' | 'standard'>('dark');
 
+  // Emergency simulation state
+  const [activeIncident, setActiveIncident] = useState<EmergencyIncident | null>(null);
+  const [isEmergencyDropActive, setIsEmergencyDropActive] = useState<boolean>(false);
+  const [selectedIncidentType, setSelectedIncidentType] = useState<'fire' | 'road_accident' | 'flash_flood'>('fire');
+  const [isDispatching, setIsDispatching] = useState<boolean>(false);
+
   // Immediately fly map to new city when activeCity changes
   useEffect(() => {
     setMapCenter(activeCity.center);
     setMapZoom(activeCity.defaultZoom || 12.8);
+    setActiveIncident(null);
   }, [activeCity.id, activeCity.center[0], activeCity.center[1], activeCity.defaultZoom]);
+
+  // Core handler: Dispatch response from nearest fire station & hospital to any coordinate
+  const handleDispatchToCoordinate = async (
+    targetCoord: [number, number],
+    incType: 'fire' | 'road_accident' | 'flash_flood' = selectedIncidentType,
+    customLabel?: string
+  ) => {
+    setIsDispatching(true);
+    try {
+      // Find closest sector
+      let nearestSec = sectors[0];
+      let minSecDist = Infinity;
+      sectors.forEach((s) => {
+        const d = calculateHaversineDistance(targetCoord, s.center);
+        if (d < minSecDist) {
+          minSecDist = d;
+          nearestSec = s;
+        }
+      });
+
+      // Find nearest fire station
+      let nearestFire = fireStations[0];
+      let minFireDist = Infinity;
+      fireStations.forEach((f) => {
+        const d = calculateHaversineDistance(targetCoord, f.coordinates);
+        if (d < minFireDist) {
+          minFireDist = d;
+          nearestFire = f;
+        }
+      });
+
+      // Find nearest hospital
+      let nearestHosp = hospitals[0];
+      let minHospDist = Infinity;
+      hospitals.forEach((h) => {
+        const d = calculateHaversineDistance(targetCoord, h.coordinates);
+        if (d < minHospDist) {
+          minHospDist = d;
+          nearestHosp = h;
+        }
+      });
+
+      // Find nearest police station
+      let nearestPolice = policeStations[0];
+      let minPoliceDist = Infinity;
+      policeStations.forEach((p) => {
+        const d = calculateHaversineDistance(targetCoord, p.coordinates);
+        if (d < minPoliceDist) {
+          minPoliceDist = d;
+          nearestPolice = p;
+        }
+      });
+
+      // Calculate real OSRM road corridor route from nearest Fire Station
+      const route = await calculateRoute(nearestFire?.coordinates || targetCoord, targetCoord);
+
+      // Hospital distance calculation
+      const hospStraightDist = nearestHosp ? calculateHaversineDistance(targetCoord, nearestHosp.coordinates) : 3.0;
+      const hospRouteDist = Math.round(hospStraightDist * 1.35 * 10) / 10;
+      const hospDurationMin = Math.round(((hospRouteDist / 32) * 60) * 10) / 10;
+
+      const incident: EmergencyIncident = {
+        id: `inc-${Date.now()}`,
+        type: incType,
+        severity: 'Critical (Tier 1)',
+        location: targetCoord,
+        addressDescription: customLabel || `${nearestSec?.name || 'Selected Sector'}, ${activeCity.name}`,
+        sectorName: nearestSec?.name || `${activeCity.name} Central Zone`,
+        populationWithin500m: Math.round(Math.PI * 0.25 * (nearestSec?.populationDensity || 9500)),
+        nearestFireStation: {
+          id: nearestFire?.id || 'fs-1',
+          name: nearestFire?.name || 'Central Fire HQ',
+          distanceKm: route.distanceKm || Math.round(minFireDist * 1.3 * 10) / 10,
+          estimatedDriveTimeMin: route.durationMinutes || Math.round((minFireDist / 30) * 60 * 10) / 10,
+          coordinates: nearestFire?.coordinates || targetCoord,
+        },
+        nearestHospital: {
+          id: nearestHosp?.id || 'hosp-1',
+          name: nearestHosp?.name || 'Civil / Apex Trauma Hospital',
+          type: nearestHosp?.hospitalType || 'Multispecialty Trauma Center',
+          distanceKm: hospRouteDist,
+          estimatedDriveTimeMin: hospDurationMin,
+          coordinates: nearestHosp?.coordinates || targetCoord,
+        },
+        nearestPoliceStation: {
+          id: nearestPolice?.id || 'pol-1',
+          name: nearestPolice?.name || 'Local Police Station',
+          distanceKm: Math.round(minPoliceDist * 1.25 * 10) / 10,
+          coordinates: nearestPolice?.coordinates || targetCoord,
+        },
+        primaryRouteCoordinates: route.coordinates,
+        trafficCongestionFactor: 1.25,
+        actionPlan: [
+          `🚒 Dispatch 2 fast-response tenders from ${nearestFire?.name || 'nearest fire station'} via ${route.summary}.`,
+          `🏥 Alert triage & trauma bay at ${nearestHosp?.name || 'nearest hospital'} (${hospDurationMin} min golden hour ETA).`,
+          `👮 Mobilize ${nearestPolice?.name || 'traffic police'} for 300m safety cordon and signal green wave.`,
+          `🛰️ Real-time ICCC telematics stream broadcasted to disaster response commanders.`,
+        ],
+      };
+
+      setActiveIncident(incident);
+      setMapCenter(targetCoord);
+      setMapZoom(14.5);
+      onSelectZone(null);
+      onSelectAsset(null);
+      setIsEmergencyDropActive(false);
+    } catch (err) {
+      console.error('Failed to trigger emergency dispatch:', err);
+    } finally {
+      setIsDispatching(false);
+    }
+  };
+
+  // Quick Random Emergency Trigger inside the selected city
+  const handleTriggerRandomEmergency = (type: 'fire' | 'road_accident' | 'flash_flood' = selectedIncidentType) => {
+    if (sectors.length === 0) {
+      const [cLat, cLng] = activeCity.center;
+      const rLat = cLat + (Math.random() - 0.5) * 0.04;
+      const rLng = cLng + (Math.random() - 0.5) * 0.04;
+      handleDispatchToCoordinate([rLat, rLng], type, `Random Alert in ${activeCity.name}`);
+      return;
+    }
+    const randomSector = sectors[Math.floor(Math.random() * sectors.length)];
+    // Add jitter from sector center
+    const jitterLat = (Math.random() - 0.5) * 0.015;
+    const jitterLng = (Math.random() - 0.5) * 0.015;
+    const point: [number, number] = [
+      randomSector.center[0] + jitterLat,
+      randomSector.center[1] + jitterLng,
+    ];
+    const typeNames = {
+      fire: '🔥 Fire Outbreak',
+      road_accident: '🚑 Highway Traffic Accident',
+      flash_flood: '🌊 Urban Waterlogging Emergency'
+    };
+    handleDispatchToCoordinate(point, type, `${typeNames[type]} near ${randomSector.name}`);
+  };
 
   // Active selective service types for the map
   const [selectedServiceTypes, setSelectedServiceTypes] = useState<Set<MunicipalServiceType>>(
@@ -230,6 +376,43 @@ export default function ExploreView({
 
         {/* Action Controls Group */}
         <div className="flex items-center gap-2 pointer-events-auto ml-auto">
+          {/* Emergency Quick Trigger Launcher */}
+          <div className="flex items-center bg-[#0a1020]/95 backdrop-blur-md border border-red-500/40 rounded-xl p-1 shadow-2xl">
+            <button
+              onClick={() => handleTriggerRandomEmergency('fire')}
+              disabled={isDispatching}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-orange-300 hover:bg-orange-500/20 transition-colors"
+              title="Spawn Random Fire Incident in City"
+            >
+              <Flame size={13} className="text-orange-400" />
+              <span>{isDispatching ? 'Routing...' : '🔥 Quick Fire'}</span>
+            </button>
+            <button
+              onClick={() => handleTriggerRandomEmergency('road_accident')}
+              disabled={isDispatching}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-red-300 hover:bg-red-500/20 transition-colors border-l border-white/10"
+              title="Spawn Random Traffic Accident in City"
+            >
+              <span>🚑 Crash</span>
+            </button>
+            <button
+              onClick={() => {
+                setIsEmergencyDropActive(!isEmergencyDropActive);
+                onSelectZone(null);
+                onSelectAsset(null);
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all border-l border-white/10 ${
+                isEmergencyDropActive
+                  ? 'bg-red-500 text-white animate-pulse shadow-md shadow-red-500/50'
+                  : 'text-sky-300 hover:bg-sky-500/20'
+              }`}
+              title="Click anywhere on the map to trigger emergency dispatch"
+            >
+              <MapPin size={13} />
+              <span>{isEmergencyDropActive ? 'Click Map!' : '📍 Drop'}</span>
+            </button>
+          </div>
+
           {/* My GPS Button */}
           <button
             onClick={onTriggerLocateMe}
@@ -338,6 +521,7 @@ export default function ExploreView({
           isDarkMode={mapStyle === 'dark'}
           selectedZone={selectedZone}
           onSelectZone={(z) => {
+            if (isEmergencyDropActive) return;
             onSelectZone(z);
             onSelectAsset(null);
           }}
@@ -357,9 +541,13 @@ export default function ExploreView({
           floodZones={floodZones}
           heatZones={heatZones}
           activeSimulation={null}
-          activeIncident={null}
-          mapClickMode="inspect"
+          activeIncident={activeIncident}
+          mapClickMode={isEmergencyDropActive ? 'incident_drop' : 'inspect'}
           onMapClickCoord={(coord) => {
+            if (isEmergencyDropActive) {
+              handleDispatchToCoordinate(coord, selectedIncidentType);
+              return;
+            }
             // Find closest sector
             let closest = sectors[0];
             let minD = Infinity;
@@ -497,6 +685,108 @@ export default function ExploreView({
             >
               <Sparkles size={14} className="text-sky-400" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 5. ACTIVE EMERGENCY DISPATCH TELEMETRY PANEL */}
+      {activeIncident && (
+        <div className="absolute top-16 left-3 md:left-4 z-40 w-[calc(100%-1.5rem)] md:w-96 bg-[#090e1c]/95 backdrop-blur-xl border border-red-500/40 rounded-2xl shadow-2xl p-4 text-slate-200 animate-in slide-in-from-top-4 duration-200">
+          <div className="flex items-start justify-between pb-2.5 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-red-500/20 text-red-400">
+                <Flame size={18} />
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/30">
+                    Live Incident
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {activeIncident.severity}
+                  </span>
+                </div>
+                <h3 className="text-sm font-bold text-white mt-0.5 leading-tight">
+                  {activeIncident.addressDescription}
+                </h3>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveIncident(null)}
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10"
+              title="Close Incident"
+            >
+              <X size={15} />
+            </button>
+          </div>
+
+          <div className="mt-3 space-y-2.5 text-xs">
+            {/* ETA Stats */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20">
+                <span className="text-[10px] text-orange-300 block font-bold">🚒 Fire Response ETA</span>
+                <span className="text-base font-black text-orange-400">
+                  {activeIncident.nearestFireStation.estimatedDriveTimeMin} min
+                </span>
+                <span className="text-[10px] text-slate-400 block truncate mt-0.5">
+                  {activeIncident.nearestFireStation.name} ({activeIncident.nearestFireStation.distanceKm} km)
+                </span>
+              </div>
+              <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                <span className="text-[10px] text-red-300 block font-bold">🏥 Trauma Center ETA</span>
+                <span className="text-base font-black text-red-400">
+                  {activeIncident.nearestHospital.estimatedDriveTimeMin} min
+                </span>
+                <span className="text-[10px] text-slate-400 block truncate mt-0.5">
+                  {activeIncident.nearestHospital.name} ({activeIncident.nearestHospital.distanceKm} km)
+                </span>
+              </div>
+            </div>
+
+            {/* Police & Population */}
+            <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.03] border border-white/5 text-[11px]">
+              <div>
+                <span className="text-slate-400">Police Precinct: </span>
+                <span className="text-white font-medium">{activeIncident.nearestPoliceStation.name}</span>
+                <span className="text-slate-500"> ({activeIncident.nearestPoliceStation.distanceKm} km)</span>
+              </div>
+              <div className="text-right">
+                <span className="text-slate-400">Pop. 500m: </span>
+                <span className="text-white font-bold" suppressHydrationWarning>
+                  {formatNumber(activeIncident.populationWithin500m)}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Plan */}
+            <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                Automated ICCC Protocol:
+              </span>
+              {activeIncident.actionPlan.map((step, idx) => (
+                <div key={idx} className="text-[11px] text-slate-300 leading-snug">
+                  {step}
+                </div>
+              ))}
+            </div>
+
+            {/* Action buttons */}
+            <div className="pt-2 flex items-center gap-2 border-t border-white/10">
+              <button
+                onClick={() => onAskAI(`What is the emergency triage and evacuation plan for ${activeIncident.type} incident at ${activeIncident.addressDescription}?`)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 font-bold text-xs transition-colors"
+              >
+                <Sparkles size={13} />
+                <span>AI Emergency Debrief</span>
+              </button>
+              <button
+                onClick={() => handleTriggerRandomEmergency(selectedIncidentType)}
+                className="px-3 py-2 rounded-xl bg-white/[0.05] hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold"
+                title="Reroll another random spot"
+              >
+                Next Random
+              </button>
+            </div>
           </div>
         </div>
       )}
